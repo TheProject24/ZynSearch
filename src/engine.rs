@@ -3,7 +3,7 @@
 use std::sync::{Arc, RwLock};
 use crate::index::InvertedIndex;
 use crate::analyzer::TextAnalyzer;
-use crate::searcher::{self, SearchEngine};
+use crate::searcher::SearchEngine;
 
 pub struct SearchEngineCore {
     pub index: Arc<RwLock<InvertedIndex>>,

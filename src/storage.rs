@@ -6,7 +6,7 @@ use crate::index::{InvertedIndex, Posting};
 pub struct StorageManager;
 
 impl StorageManager {
-    pub fn serialize(index: &InvertedIndex, file_path: &str) -> Result<()>{
+    pub fn serialize(index: &InvertedIndex, file_path: &str) -> Result<()> {
         let file = File::create(file_path)?;
         let mut writer = BufWriter::new(file);
 
@@ -35,7 +35,8 @@ impl StorageManager {
 
             for posting in posting_list {
                 writer.write_all(&(posting.document_id as u64).to_le_bytes())?;
-                writer.write_all(&posting.frequency.to_le_bytes())?;
+                // Cast to u32 (4 bytes) explicitly for disk storage consistency
+                writer.write_all(&(posting.frequency as u32).to_le_bytes())?;
             }
         }
 
@@ -72,7 +73,7 @@ impl StorageManager {
             let mut path_bytes = vec![0u8; path_len];
             reader.read_exact(&mut path_bytes)?;
             let path = String::from_utf8(path_bytes)
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "Malformed UTF-8 string path"))?;
+                .map_err(|_| std::io::Error::new(InvalidData, "Malformed UTF-8 string path"))?;
 
             inverted_index.document_registry.insert(doc_id, path);
         }
@@ -87,24 +88,24 @@ impl StorageManager {
             let mut term_bytes = vec![0u8; term_len];
             reader.read_exact(&mut term_bytes)?;
             let term = String::from_utf8(term_bytes)
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "Malformed UTF-8 term key"))?;
+                .map_err(|_| std::io::Error::new(InvalidData, "Malformed UTF-8 term key"))?;
 
             reader.read_exact(&mut buf_u64)?;
             let posting_count = u64::from_le_bytes(buf_u64) as usize;
 
-            let mut posting_list = Vec::with_capacity(posting_count as usize);
+            let mut posting_list = Vec::with_capacity(posting_count);
             let mut buf_u32 = [0u8; 4];
 
             for _ in 0..posting_count {
-                reader.read_exact(&mut buf_u32)?;
+                reader.read_exact(&mut buf_u64)?;
                 let doc_id = u64::from_le_bytes(buf_u64) as usize;
                 
                 reader.read_exact(&mut buf_u32)?;
-                let term_frequency = u32::from_le_bytes(buf_u32) as usize;
+                let frequency = u32::from_le_bytes(buf_u32) as usize;
 
                 posting_list.push(Posting {
                     document_id: doc_id,
-                    frequency: term_frequency,
+                    frequency,
                 });
             }
 
@@ -112,11 +113,10 @@ impl StorageManager {
         }
 
         Ok(inverted_index)
-
     }
 }
 
-pub struct ZeroCopyReader <'a> {
+pub struct ZeroCopyReader<'a> {
     data: &'a [u8],
 }
 
@@ -133,41 +133,43 @@ impl<'a> ZeroCopyReader<'a> {
         }
         cursor += 10;
 
-        let doc_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)?;
+        let doc_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?) as usize;
         cursor += 8;
 
         for _ in 0..doc_count {
             cursor += 8;
-            let path_len = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)?; as usize;
+            let path_len = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?) as usize;
             cursor += 8;
             cursor += path_len;
         }
 
-        let term_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)?;
+        let term_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?) as usize;
         cursor += 8;
 
         for _ in 0..term_count {
-            let term_len = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)? as usize;
+            let term_len = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?) as usize;
             cursor += 8;
 
-            let current_term_bytes = &self.data[cursor..cursor+term_len]];
+            let current_term_bytes = &self.data[cursor..cursor+term_len];
+            cursor += term_len;
+
+            let posting_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?) as usize;
             cursor += 8;
 
             if current_term_bytes == target_term.as_bytes() {
                 let mut matched_doc_ids = Vec::with_capacity(posting_count);
                 for _ in 0..posting_count {
-                    let doc_id = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)? as usize;
+                    let doc_id = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?) as usize;
                     cursor += 8;
-                    cursor += 4;
+                    cursor += 4; // Frequency is fixed at 4 bytes (u32)
 
                     matched_doc_ids.push(doc_id);
                 }
                 return Some(matched_doc_ids);
             } else {
-                cursor += posting_count * 12;
+                cursor += posting_count * (8 + 4); // 8 bytes for doc_id + 4 bytes for frequency
             }
         }
         None
     }
-
 }

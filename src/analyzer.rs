@@ -47,15 +47,15 @@ impl TextAnalyzer {
         tokens
     }
 
-    fn is_stop_word(&self, word: &str) -> bool {
-        for stopper in &self.stop_words {
-            if word == stopper {
-                return true;
-            }
-        }
+    // fn is_stop_word(&self, word: &str) -> bool {
+    //     for stopper in &self.stop_words {
+    //         if word == stopper {
+    //             return true;
+    //         }
+    //     }
 
-        false
-    }
+    //     false
+    // }
 
     fn apply_heuristic_stemming(&self, word: &str) -> String {
         if let Some(root) = word.strip_suffix("ing") {
