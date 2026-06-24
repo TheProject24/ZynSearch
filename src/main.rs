@@ -5,139 +5,162 @@ mod index;
 mod searcher;
 mod engine;
 mod storage;
+mod config; // Register your new config module!
 
 use std::path::Path;
-use std::io::{self, Write};
+use clap::Parser;
+use tokio::net::TcpListener;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
 use crawler::DirectoryCrawler;
 use parser::{PlainTextParser, MarkdownParser, DocumentParser};
 use engine::SearchEngineCore;
-// use storage::StorageManager;
 use storage::{StorageManager, ZeroCopyReader};
+use config::Config;
 
-fn main() {
+#[derive(Serialize)]
+struct SearchResponse {
+    query: String,
+    status: String,
+    match_count: usize,
+    documents: Vec<String>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Parse configuration from CLI arguments or .env variables
+    let config = Config::parse();
+
     println!("========================================");
-    println!("      AuraSearch Engine v1.0 Core       ");
+    println!("      AuraSearch TCP Daemon v1.0        ");
     println!("========================================");
 
-    // Initialize our thread-safe concurrency engine
     let engine_core = SearchEngineCore::new();
-    let db_filename = "index.bin";
 
-    // BOOT SEQUENCE: Attempt to hydrate an existing database
-    if Path::new(db_filename).exists() {
-        println!("[BOOT] Found existing database: '{}'", db_filename);
-        print!("[BOOT] Hydrating index into memory... ");
-        io::stdout().flush().unwrap();
-
-        match StorageManager::deserialize(db_filename) {
+    // 2. BOOT SEQUENCE
+    if Path::new(&config.db_path).exists() {
+        println!("[BOOT] Hydrating database from: {}", config.db_path);
+        match StorageManager::deserialize(&config.db_path) {
             Ok(loaded_index) => {
-                // Acquire an exclusive write lock and swap out the empty index 
-                // for the fully hydrated one we just pulled from disk!
                 *engine_core.index.write().unwrap() = loaded_index;
-                println!("Done.");
+                println!("[BOOT] Hydration successful.");
             }
             Err(e) => {
-                eprintln!("\n[ERROR] Failed to load database: {}", e);
-                println!("[BOOT] Falling back to fresh ingestion...");
-                run_ingestion_pipeline(&engine_core, db_filename);
+                eprintln!("[ERROR] Failed to load DB: {}", e);
+                run_ingestion_pipeline(&engine_core, &config);
             }
         }
     } else {
-        println!("[BOOT] No existing database found. Initiating full system crawl...");
-        run_ingestion_pipeline(&engine_core, db_filename);
+        println!("[BOOT] No database found. Initiating corpus crawl...");
+        run_ingestion_pipeline(&engine_core, &config);
     }
 
-    // INTERACTIVE QUERY SHELL
-    println!("\nSystem Ready. Type 'exit' or 'quit' to shutdown.");
+    // 3. START TCP SERVER
+    let bind_addr = format!("{}:{}", config.host, config.port);
+    let listener = TcpListener::bind(&bind_addr).await?;
+    println!("\n[NETWORK] Server listening on TCP {}", bind_addr);
+    println!("[NETWORK] Ready for incoming connections...\n");
+
+    // Wrap the engine in an Arc so we can share it safely across thousands of TCP connections
+    let shared_engine = std::sync::Arc::new(engine_core);
+
+    // 4. ASYNC CONNECTION LOOP
     loop {
-        print!("AuraSearch > ");
-        io::stdout().flush().unwrap();
+        // Wait for a new client to connect
+        let (mut socket, addr) = listener.accept().await?;
+        println!("[TCP] Client connected from: {}", addr);
 
-        let mut query = String::new();
-        io::stdin().read_line(&mut query).unwrap();
-        let query = query.trim();
+        // Clone the Arc pointer for this specific client task
+        let engine_clone = shared_engine.clone();
 
-        if query == "exit" || query == "quit" {
-            println!("Shutting down AuraSearch. Goodbye!");
-            break;
-        }
+        // Spawn a concurrent Tokio task. This allows thousands of users 
+        // to search simultaneously without blocking each other!
+        tokio::spawn(async move {
+            let mut buffer = [0; 1024];
 
-        if query.is_empty() {
-            continue;
-        }
+            // Greet the client
+            let _ = socket.write_all(b"Connected to AuraSearch. Enter query:\n> ").await;
 
-        // ==========================================
-        // SECRET DEV COMMAND: Zero-Copy Disk Lookup
-        // ==========================================
-        if query.starts_with("mmap ") {
-            // Extract the word they want to search
-            let target_term = query.trim_start_matches("mmap ").trim();
-            
-            // Read the raw binary file and use our zero-copy engine
-            if let Ok(raw_bytes) = std::fs::read(db_filename) {
-                let reader = ZeroCopyReader::new(&raw_bytes);
-                
-                if let Some(doc_ids) = reader.lookup_term_postings(target_term) {
-                    println!("  [MMAP DIRECT DISK READ] Found term in {} document IDs: {:?}", doc_ids.len(), doc_ids);
-                } else {
-                    println!("  [MMAP DIRECT DISK READ] Term not found on disk.");
+            loop {
+                // Read client input
+                let bytes_read = match socket.read(&mut buffer).await {
+                    Ok(n) if n == 0 => break, // Client disconnected cleanly
+                    Ok(n) => n,
+                    Err(_) => break, // Connection dropped
+                };
+
+                // Parse the raw bytes into a UTF-8 string query
+                let query = String::from_utf8_lossy(&buffer[..bytes_read]);
+                let query = query.trim();
+
+                if query.is_empty() {
+                    let _ = socket.write_all(b"> ").await;
+                    continue;
                 }
-            } else {
-                eprintln!("  [ERROR] Could not read index.bin from disk.");
-            }
-            continue; // Skip the standard RAM search and ask for the next prompt
-        }
-        // ==========================================
 
-        // Standard RAM search execution
-        let hits = engine_core.execute_search(query);
-        
-        if hits.is_empty() {
-            println!("  No documents matched your query.");
-        } else {
-            println!("  Found {} matching document(s):", hits.len());
-            for path in hits {
-                println!("    -> {}", path);
+                if query == "exit" || query == "quit" {
+                    let _ = socket.write_all(b"Goodbye!\n").await;
+                    break;
+                }
+
+                // EXECUTE SEARCH ALGORITHM
+                let hits = engine_clone.execute_search(query);
+
+                // Build the standard response object
+                let response_data = SearchResponse {
+                    query: query.to_string(),
+                    status: "success".to_string(),
+                    match_count: hits.len(),
+                    documents: hits,
+                };
+
+                // 3. Dynamically format based on runtime configuration
+                let wire_bytes: Vec<u8> = match config.format {
+                    OutputFormat::Text => {
+                        // Human-readable terminal output
+                        let mut text = format!("Found {} matches:\n", response_data.match_count);
+                        for doc in &response_data.documents {
+                            text.push_str(&format!(" -> {}\n", doc));
+                        }
+                        text.into_bytes()
+                    }
+                    OutputFormat::Json => {
+                        // High-compatibility JSON string serialization
+                        serde_json::to_vec(&response_data).unwrap_or_default()
+                    }
+                    OutputFormat::Binary => {
+                        // Ultra-low latency, dense binary representation for other Rust backend nodes
+                        bincode::serialize(&response_data).unwrap_or_default()
+                    }
+                };
+
+                // Shoot the customized byte envelope out across the TCP wire!
+                if socket.write_all(&wire_bytes).await.is_err() {
+                    break;
+                }
             }
-        }
+            println!("[TCP] Client disconnected: {}", addr);
+        });
     }
 }
 
-/// A dedicated helper function to handle the ingestion logic cleanly
-fn run_ingestion_pipeline(engine_core: &SearchEngineCore, db_filename: &str) {
-    let target_dir = Path::new("./"); 
+fn run_ingestion_pipeline(engine_core: &SearchEngineCore, config: &Config) {
+    let target_dir = Path::new(&config.corpus_dir);
     let allowed_extensions = vec!["txt".to_string(), "md".to_string()];
-    
     let crawler = DirectoryCrawler::new(target_dir, allowed_extensions);
 
-    println!("[INGEST] Scanning directory for indexable documents...");
     let discovered_files = crawler.run();
-    println!("[INGEST] Found {} candidate files.", discovered_files.len());
-
     for path_buf in discovered_files {
         let path_str = path_buf.to_string_lossy().into_owned();
-
-        let raw_content = match std::fs::read_to_string(&path_buf) {
-            Ok(content) => content,
-            Err(_) => continue,
-        };
-
+        let raw_content = std::fs::read_to_string(&path_buf).unwrap_or_default();
         let clean_text = match path_buf.extension().and_then(|ext| ext.to_str()) {
             Some("md") => MarkdownParser.parse(&raw_content),
             _ => PlainTextParser.parse(&raw_content),
         };
-
         let tokens = engine_core.analyzer.analyze(&clean_text);
         engine_core.ingest_document(&path_str, tokens);
     }
-
-    println!("[INGEST] Ingestion Complete.");
-
-    // Serialize snapshot out to disk
+    
     let current_state = engine_core.index.read().unwrap();
-    if let Err(e) = StorageManager::serialize(&current_state, db_filename) {
-        eprintln!("[ERROR] Failed to persist database index: {}", e);
-    } else {
-        println!("[STORAGE] Database snapshot safely written to '{}'", db_filename);
-    }
+    let _ = StorageManager::serialize(&current_state, &config.db_path);
 }

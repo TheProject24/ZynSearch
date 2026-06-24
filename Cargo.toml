@@ -4,6 +4,13 @@ version = "1.0.0"
 edition = "2024"
 
 [dependencies]
-memmap2 = "0.9.0"
 walkdir = "2.4.0"
-
+libc = "0.2.186"
+memmap2 = "0.9.11"
+stop-words = "0.10.0"
+rust-stemmers = "1.2.0"
+clap = { version = "4.4", features = ["derive", "env"] }
+tokio = { version = "1.32", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.4"
