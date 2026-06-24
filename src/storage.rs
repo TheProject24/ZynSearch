@@ -1,9 +1,7 @@
 use std::fs::File;
 use std::io::ErrorKind::InvalidData;
 use std::io::{Read, Write, BufWriter, BufReader, Result};
-use std::collections::HashMap;
-use std::path;
-use crate::index::{self, InvertedIndex, Posting};
+use crate::index::{InvertedIndex, Posting};
 
 pub struct StorageManager;
 
@@ -116,4 +114,60 @@ impl StorageManager {
         Ok(inverted_index)
 
     }
+}
+
+pub struct ZeroCopyReader <'a> {
+    data: &'a [u8],
+}
+
+impl<'a> ZeroCopyReader<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        ZeroCopyReader { data }
+    }
+
+    pub fn lookup_term_postings(&self, target_term: &str) -> Option<Vec<usize>> {
+        let mut cursor = 0;
+
+        if self.data.len() < 10 || &self.data[0..10] != b"AURASEARCH" {
+            return None;
+        }
+        cursor += 10;
+
+        let doc_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)?;
+        cursor += 8;
+
+        for _ in 0..doc_count {
+            cursor += 8;
+            let path_len = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)?; as usize;
+            cursor += 8;
+            cursor += path_len;
+        }
+
+        let term_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)?;
+        cursor += 8;
+
+        for _ in 0..term_count {
+            let term_len = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)? as usize;
+            cursor += 8;
+
+            let current_term_bytes = &self.data[cursor..cursor+term_len]];
+            cursor += 8;
+
+            if current_term_bytes == target_term.as_bytes() {
+                let mut matched_doc_ids = Vec::with_capacity(posting_count);
+                for _ in 0..posting_count {
+                    let doc_id = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?)? as usize;
+                    cursor += 8;
+                    cursor += 4;
+
+                    matched_doc_ids.push(doc_id);
+                }
+                return Some(matched_doc_ids);
+            } else {
+                cursor += posting_count * 12;
+            }
+        }
+        None
+    }
+
 }
