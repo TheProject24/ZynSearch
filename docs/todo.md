@@ -16,9 +16,9 @@ Standard 32-bit integer arrays will choke your CPU cache lines. The goal here is
 
 To eliminate read locks and maximize throughput, the storage engine should move from a single file to an immutable segment architecture.
 //TODO!
-- [ ] Implement a write-ahead log (WAL): log raw document write operations to disk before executing them in memory to improve persistence guarantees.
+- [x] Implement a write-ahead log (WAL): log raw document write operations to disk before executing them in memory to improve persistence guarantees.
 //TODO!
-- [ ] Build an in-memory buffer (MemTable): collect incoming document batches in a lock-free buffer structure before writing them to disk.
+- [x] Build an in-memory buffer (MemTable): collect incoming document batches in a lock-free buffer structure before writing them to disk.
 //TODO!
 - [ ] Design the immutable segment writer: flush the memory buffer to disk as an unchangeable, independent mini inverted index once it reaches a size threshold.
 //TODO!

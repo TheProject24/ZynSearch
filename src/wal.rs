@@ -47,6 +47,30 @@ impl WriteAheadLog {
             }
         }
 
-        Ok
+        Ok(recovered_commands)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_lego_notebook() {
+        let path = Path::new("test_notebook.wal");
+
+        let mut wal = WriteAheadLog::new(path).unwrap();
+
+        let command = LogCommand::AddDocument { doc_id: 1, content: "Call me Ishmael.".to_string() };
+
+        wal.write_instruction(&command).unwrap();
+
+        let recovered = WriteAheadLog::recover_instructions(path).unwrap();
+
+        assert_eq!(recovered.len(), 1);
+        assert_eq!(recovered[0], command);
+
+        let _ = fs::remove_file(path);
     }
 }

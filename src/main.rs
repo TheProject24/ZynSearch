@@ -5,6 +5,8 @@ mod index;
 mod searcher;
 mod engine;
 mod storage;
+mod memtable;
+mod segment;
 mod compression;
 mod layout;
 mod wal;
