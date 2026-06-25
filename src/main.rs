@@ -5,18 +5,23 @@ mod index;
 mod searcher;
 mod engine;
 mod storage;
+mod compression;
+mod layout;
+mod wal;
+mod bitmap;
 mod config; // Register your new config module!
 
 use std::path::Path;
 use clap::Parser;
 use tokio::net::TcpListener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use serde::Serialize;
 
 use crawler::DirectoryCrawler;
 use parser::{PlainTextParser, MarkdownParser, DocumentParser};
 use engine::SearchEngineCore;
-use storage::{StorageManager, ZeroCopyReader};
-use config::Config;
+use storage::StorageManager;
+use config::{Config, OutputFormat};
 
 #[derive(Serialize)]
 struct SearchResponse {

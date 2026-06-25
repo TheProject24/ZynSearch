@@ -1,4 +1,11 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+
+#[derive(ValueEnum, Clone, Debug, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    Text,
+    Json,
+    Binary,
+}
 
 #[derive(Parser, Debug, Clone)]
 #[command(name = "AuraSearch Daemon")]
@@ -20,27 +27,8 @@ pub struct Config {
     /// Directory to crawl if no existing database is found.
     #[arg(short = 'C', long, env = "AURA_CORPUS_DIR", default_value = "./")]
     pub corpus_dir: String,
-}
 
-#[derive(ValueEnum, Clone, Debug, Copy, PartialEq, Eq)]
-pub enum OutputFormat {
-    Text,
-    Json,
-    Binary,
-}
-
-#[derive(Parser, Debug, Clone)]
-pub struct Config {
-    #[arg(short = 'H', long, default_value = "127.0.0.1")]
-    pub host: String,
-
-    #[arg(short = 'P', long, default_value = "7777")]
-    pub port: u16,
-
-    // NEW: Allow the user to specify the serialization format!
+    /// Output format for TCP responses.
     #[arg(short = 'F', long, env = "AURA_FORMAT", value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
-    
-    #[arg(short = 'D', long, default_value = "index.bin")]
-    pub db_path: String,
 }
