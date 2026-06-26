@@ -22,7 +22,7 @@ To eliminate read locks and maximize throughput, the storage engine should move 
 //TODO!
 - [x] Design the immutable segment writer: flush the memory buffer to disk as an unchangeable, independent mini inverted index once it reaches a size threshold.
 //TODO!
-- [ ] Develop a multi-segment reader layer: update search execution logic to query all active on-disk segments concurrently using a work-stealing thread pool such as `rayon`.
+- [x] Develop a multi-segment reader layer: update search execution logic to query all active on-disk segments concurrently using a work-stealing thread pool such as `rayon`.
 //TODO!
 - [ ] Write a tiered segment merge policy: build a background worker that continuously monitors small segments and merges them into larger consolidated structures while cleaning up deleted document tags.
 

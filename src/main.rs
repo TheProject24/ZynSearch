@@ -8,6 +8,7 @@ mod storage;
 mod memtable;
 mod segment;
 mod multi_reader;
+mod merge_policy;
 mod compression;
 mod layout;
 mod wal;
