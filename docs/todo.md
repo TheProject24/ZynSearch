@@ -24,7 +24,7 @@ To eliminate read locks and maximize throughput, the storage engine should move 
 //TODO!
 - [x] Develop a multi-segment reader layer: update search execution logic to query all active on-disk segments concurrently using a work-stealing thread pool such as `rayon`.
 //TODO!
-- [ ] Write a tiered segment merge policy: build a background worker that continuously monitors small segments and merges them into larger consolidated structures while cleaning up deleted document tags.
+- [x] Write a tiered segment merge policy: build a background worker that continuously monitors small segments and merges them into larger consolidated structures while cleaning up deleted document tags.
 
 ## Phase 3: Logarithmic Query Traversal Algorithms
 
