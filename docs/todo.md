@@ -20,7 +20,7 @@ To eliminate read locks and maximize throughput, the storage engine should move 
 //TODO!
 - [x] Build an in-memory buffer (MemTable): collect incoming document batches in a lock-free buffer structure before writing them to disk.
 //TODO!
-- [ ] Design the immutable segment writer: flush the memory buffer to disk as an unchangeable, independent mini inverted index once it reaches a size threshold.
+- [x] Design the immutable segment writer: flush the memory buffer to disk as an unchangeable, independent mini inverted index once it reaches a size threshold.
 //TODO!
 - [ ] Develop a multi-segment reader layer: update search execution logic to query all active on-disk segments concurrently using a work-stealing thread pool such as `rayon`.
 //TODO!

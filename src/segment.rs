@@ -48,3 +48,35 @@ impl Segment {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::memtable;
+
+use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_flush_memtable_to_segment() {
+        let temp_folder = PathBuf::from(".");
+
+        let memtable_data = vec![
+            (10, "The fast fox".to_string()),
+            (20, "The lazy dog".to_string()),
+        ];
+
+        Segment::flush_to_disk(99, &memtable_data, &temp_folder).unwrap();
+
+        let expected_file = temp_folder.join("segment_99.bin");
+        assert!(expected_file.exists());
+
+        let file_bytes = fs::read(&expected_file).unwrap();
+        let recovered_segment: Segment = bincode::deserialize(&file_bytes).unwrap();
+
+        let the_list = recovererd_segment.dictionary.get("the").unwrap();
+        assert_eq!(the_list, &vec![10, 20]);
+
+        let _ = fs::remove_file(expected_file);
+
+    }
+}

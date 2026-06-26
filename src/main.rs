@@ -7,6 +7,7 @@ mod engine;
 mod storage;
 mod memtable;
 mod segment;
+mod multi_reader;
 mod compression;
 mod layout;
 mod wal;
