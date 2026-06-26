@@ -33,7 +33,7 @@ Linear text matching scales poorly. The search layer needs structures that can s
 //TODO!
 - [x] Construct a finite state transducer (FST) dictionary: compress the vocabulary into a deterministically compiled byte array so lookups remain cache-friendly.
 //TODO!
-- [ ] Embed skip lists in postings blocks: add navigation offsets every 128 document IDs inside the binary schema to speed up set intersection.
+- [x] Embed skip lists in postings blocks: add navigation offsets every 128 document IDs inside the binary schema to speed up set intersection.
 //TODO!
 - [ ] Implement the Block-Max WAND algorithm: use internal score trackers within postings blocks to skip evaluating document sequences that cannot beat the current top results.
 //TODO!

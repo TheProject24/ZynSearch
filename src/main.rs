@@ -12,6 +12,7 @@ mod dictionary;
 mod merge_policy;
 mod compression;
 mod skip_posting;
+mod bm_wand;
 mod layout;
 mod wal;
 mod bitmap;
