@@ -31,7 +31,7 @@ To eliminate read locks and maximize throughput, the storage engine should move 
 Linear text matching scales poorly. The search layer needs structures that can skip straight to the answer.
 
 //TODO!
-- [ ] Construct a finite state transducer (FST) dictionary: compress the vocabulary into a deterministically compiled byte array so lookups remain cache-friendly.
+- [x] Construct a finite state transducer (FST) dictionary: compress the vocabulary into a deterministically compiled byte array so lookups remain cache-friendly.
 //TODO!
 - [ ] Embed skip lists in postings blocks: add navigation offsets every 128 document IDs inside the binary schema to speed up set intersection.
 //TODO!

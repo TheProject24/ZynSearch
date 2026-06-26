@@ -11,6 +11,7 @@ mod multi_reader;
 mod dictionary;
 mod merge_policy;
 mod compression;
+mod skip_posting;
 mod layout;
 mod wal;
 mod bitmap;
