@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-##[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Operator {
     Must,
     Should,
     MustNot,
 }
 
-##[derive(Debug)]
+#[derive(Debug)]
 pub struct QueryClause {
     pub operator: Operator,
     pub word: String,
@@ -19,7 +19,8 @@ pub struct BooleanQuery {
 
 impl Boolean {
     pub fn execute<F>(&self, fetch_documents_for_word: F) -> HashSet<u32>
-    where Fn(&str) -> HashSet<u32>, {
+    where Fn(&str) -> HashSet<u32>,
+    {
         let mut must_bucket: Option<HashSet<u32>> = None;
         let mut should_bucket = HashSet::new();
         let mut must_not_bucket = HashSet::new();
