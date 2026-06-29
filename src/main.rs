@@ -8,6 +8,7 @@ mod storage;
 mod memtable;
 mod segment;
 mod boolean_query;
+mod collection_stats;
 mod multi_reader;
 mod dictionary;
 mod merge_policy;
