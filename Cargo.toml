@@ -1,6 +1,6 @@
 [package]
-name = "aura_search"
-version = "1.0.0"
+name = "ZynSearch"
+version = "0.0.0"
 edition = "2024"
 
 [dependencies]

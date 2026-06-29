@@ -7,6 +7,7 @@ mod engine;
 mod storage;
 mod memtable;
 mod segment;
+mod boolean_query;
 mod multi_reader;
 mod dictionary;
 mod merge_policy;

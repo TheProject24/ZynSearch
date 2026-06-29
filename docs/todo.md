@@ -1,4 +1,4 @@
-# AuraSearch Roadmap
+# ZynSearch Roadmap
 
 ## Phase 1: Storage Layer & Bit-Packed Compression
 
@@ -35,9 +35,9 @@ Linear text matching scales poorly. The search layer needs structures that can s
 //TODO!
 - [x] Embed skip lists in postings blocks: add navigation offsets every 128 document IDs inside the binary schema to speed up set intersection.
 //TODO!
-- [ ] Implement the Block-Max WAND algorithm: use internal score trackers within postings blocks to skip evaluating document sequences that cannot beat the current top results.
+- [x] Implement the Block-Max WAND algorithm: use internal score trackers within postings blocks to skip evaluating document sequences that cannot beat the current top results.
 //TODO!
-- [ ] Support Boolean query operators: expand the execution core to parse complex query conditions beyond basic sequences, including `MUST`, `SHOULD`, and `MUST_NOT` clauses.
+- [x] Support Boolean query operators: expand the execution core to parse complex query conditions beyond basic sequences, including `MUST`, `SHOULD`, and `MUST_NOT` clauses.
 
 ## Phase 4: Relevance Engine & Ranking Mechanics
 
@@ -65,3 +65,43 @@ To handle production traffic at scale, the single node should support network pr
 //TODO!
 - [ ] Construct a scatter-gather query coordinator: route incoming queries across multiple search nodes simultaneously and combine the results into a unified sorted response list.
 
+
+## Phase 6: Plug-and-Play Distribution Layer
+
+ZynSearch should be consumable by any language or framework without friction. This phase restructures the project into a multi-crate workspace and ships a complete distribution surface covering direct embedding, gRPC, HTTP, and thin language SDKs.
+
+### 6.1 Workspace Restructure
+//TODO!
+- [ ] Restructure the repository into a Cargo workspace with three crates: `zynsearch-core` (pure engine, no network concern), `zynsearch-server` (network layer), and `zynsearch-cli` (thin binary shell over core).
+//TODO!
+- [ ] Ensure `zynsearch-core` is independently publishable to crates.io so Rust projects can embed the engine directly without running a server.
+
+### 6.2 gRPC Interface
+//TODO!
+- [ ] Author a `.proto` file defining the full ZynSearch service contract: `Index`, `Search`, `Delete`, `BulkIndex` (client streaming), and `SearchStream` (server streaming) RPCs with strongly typed request and response messages.
+//TODO!
+- [ ] Implement the gRPC server in `zynsearch-server` using `tonic`, wiring each RPC handler into the corresponding `zynsearch-core` engine method.
+//TODO!
+- [ ] Expose a `BulkIndex` client-streaming RPC to allow high-throughput document ingestion over a single persistent connection without per-document HTTP overhead.
+//TODO!
+- [ ] Expose a `SearchStream` server-streaming RPC to pipe ranked results back to the client incrementally as they are scored, rather than waiting for a full sort.
+//TODO!
+- [ ] Ship the `.proto` file as a first-class artifact in the repository so any consumer can generate a fully typed client in their language using standard protoc tooling.
+
+### 6.3 HTTP REST Interface
+//TODO!
+- [ ] Implement an HTTP layer in `zynsearch-server` using `axum`, exposing `POST /index`, `GET /search`, and `DELETE /index/:id` endpoints with JSON request and response bodies.
+//TODO!
+- [ ] Support startup flags `--protocol http` and `--protocol grpc` (and optionally `--protocol both`) so operators choose their transport at deploy time without recompiling.
+//TODO!
+- [ ] Return structured JSON error responses with a consistent shape across all HTTP endpoints so SDK authors and consumers can handle errors uniformly.
+
+### 6.4 Language SDKs
+//TODO!
+- [ ] Build a JavaScript/TypeScript SDK (`zynsearch-js`) as a thin wrapper over the HTTP layer, exposing an idiomatic async client: `client.index()`, `client.search()`, `client.delete()`.
+//TODO!
+- [ ] Build a Python SDK (`zynsearch-py`) wrapping the HTTP layer with a synchronous and async interface, publishable to PyPI.
+//TODO!
+- [ ] Build a Go SDK (`zynsearch-go`) wrapping the HTTP layer as an importable Go module, publishable to pkg.go.dev.
+//TODO!
+- [ ] Ensure all SDKs handle connection errors, timeout configuration, and structured error responses consistently so the developer experience is uniform across languages.
