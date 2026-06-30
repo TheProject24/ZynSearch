@@ -1,441 +1,146 @@
 # ZynSearch
 
-> A lightweight local search engine written in Rust for indexing and querying plain text and Markdown files.
+> A fast, multi-surface search engine with a Rust core, secure HTTP REST, gRPC, and thin SDKs for JavaScript, Python, and Go.
 
-ZynSearch is a small but expressive document search engine that walks a directory tree, extracts text from supported files, tokenizes content, builds an in-memory inverted index, and lets you run interactive searches from the terminal.
+ZynSearch is built for the moment when a search engine should stop feeling like a research prototype and start feeling like a product.
+It gives you a compact engine core, an authenticated HTTP layer for SDKs, a gRPC contract for strongly typed integrations, and a clean
+path for embedding search directly inside Rust applications.
 
-It is intentionally simple in architecture, which makes it a great project for learning:
+The project now spans the full stack:
 
-- how a crawler discovers files
-- how a parser normalizes content
-- how an analyzer turns text into searchable tokens
-- how an inverted index stores postings
-- how a search layer intersects query terms
-- how persistence can serialize and deserialize search data
+- `zynsearch-core` for indexing, retrieval, storage, scoring, and query execution
+- `zynsearch-server` for HTTP and gRPC delivery
+- `zynsearch-cli` for local workflows and quick indexing/searching
+- `sdks/zynsearch-js` for TypeScript and Node.js consumers
+- `sdks/zynsearch-py` for Python applications and automation
+- `sdks/zynsearch-go` for Go services and tooling
 
-The codebase is compact, but the design is clear enough to grow into a richer search system.
+## Why ZynSearch Exists
 
-## Table Of Contents
+Most search demos stop at "it works." ZynSearch is aimed at the next layer:
 
-- [What ZynSearch Does](#what-ZynSearch-does)
-- [Project Highlights](#project-highlights)
-- [Architecture Overview](#architecture-overview)
-- [How It Works](#how-it-works)
-- [Supported File Types](#supported-file-types)
-- [Tokenization And Search Rules](#tokenization-and-search-rules)
-- [Persistence Format](#persistence-format)
-- [Repository Layout](#repository-layout)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-- [Examples](#examples)
-- [gRPC API](#grpc-api)
-- [Implementation Notes](#implementation-notes)
-- [Known Limitations](#known-limitations)
-- [Future Ideas](#future-ideas)
+- a reusable search engine core
+- a secure transport boundary for SDKs
+- predictable JSON and gRPC contracts
+- enough structure to grow into a real platform
 
-## What ZynSearch Does
+It is especially useful when you want:
 
-ZynSearch scans the current directory recursively, finds files with allowed extensions, reads their contents, converts Markdown or plain text into searchable text, analyzes the text into tokens, and stores those tokens in an inverted index.
+- a lightweight embedded search engine
+- a self-hosted search service with auth
+- SDKs that can talk to the same backend from multiple languages
+- a codebase that makes the moving parts easy to understand
 
-At query time, it accepts a search string from standard input, tokenizes the query using the same analyzer, and returns documents that contain all query terms.
+## Visual Map
 
-In simple terms:
+```text
+Documents -> Analyzer -> Inverted Index -> Scoring -> HTTP/gRPC -> SDKs
+                                |
+                                +-> Persistence / WAL / segments / query pipeline
+```
 
-1. discover documents
-2. clean and normalize content
-3. build a searchable index
-4. accept a query
-5. return matching files
+## Core Components
+
+### `zynsearch-core`
+
+The engine room.
+
+It contains:
+
+- document ingestion and parsing
+- tokenization and analysis
+- inverted index structures
+- query execution and ranking
+- storage and persistence helpers
+- the embeddable `ZynSearch` API
+
+### `zynsearch-server`
+
+The network boundary.
+
+It exposes:
+
+- `POST /index`
+- `GET /search`
+- `DELETE /index/:id`
+- gRPC service methods for richer typed clients
+
+It also supports:
+
+- Basic Auth for SDK access
+- optional TLS so credentials are not sent in cleartext
+
+### SDKs
+
+The SDKs are deliberately thin.
+
+They translate native language objects into the REST contract, then return structured results back to the caller with as little ceremony as possible.
+
+- JavaScript/TypeScript: ergonomic async client for Node.js and serverless apps
+- Python: friendly sync and async access for data tooling and automation
+- Go: small, direct client for backend services
+
+## Security Model
+
+For production use, the recommended shape is:
+
+1. HTTPS enabled with certificates
+2. Basic Auth enabled for client credentials
+3. SDKs configured with endpoint, username, and password
+
+That gives you a simple connection story without inventing custom auth schemes early.
 
 ## Project Highlights
 
-- Written in Rust 2024 edition
-- Uses a clean modular layout with dedicated files for crawling, parsing, indexing, searching, storage, and analysis
-- Supports `.txt` and `.md` files out of the box
-- Applies simple stop-word filtering and heuristic stemming
-- Provides an interactive terminal-based search loop
-- Includes a persistence layer for saving and loading the index
+- Rust 2024 core with a modular architecture
+- REST and gRPC distribution layers
+- SDK-friendly JSON payloads
+- structured HTTP errors
+- support for both embedded and service-based deployment
+- a clear path toward production hardening
 
-## Architecture Overview
+## Getting Started
 
-ZynSearch is organized around a few core components:
+The fastest way to understand ZynSearch is to start at the center:
 
-- `DirectoryCrawler` finds files to ingest
-- `DocumentParser` cleans raw file content
-- `TextAnalyzer` normalizes text and generates tokens
-- `InvertedIndex` stores terms and postings
-- `SearchEngineCore` coordinates ingestion and search
-- `SearchEngine` executes query matching
-- `StorageManager` serializes and deserializes indexed data
-- `ZeroCopyReader` offers a byte-slice-based lookup path for postings
-
-The current runtime flow in `src/main.rs` is:
-
-```text
-directory crawl -> read file -> parse -> analyze -> ingest -> query loop
-```
-
-## How It Works
-
-### 1. Crawling
-
-`src/crawler.rs` uses [`walkdir`](https://docs.rs/walkdir) to recursively traverse the root path and collect files with approved extensions.
-
-The crawler:
-
-- visits each filesystem entry
-- keeps only regular files
-- filters by extension
-- returns a `Vec<PathBuf>` of discovered documents
-
-### 2. Parsing
-
-`src/parser.rs` defines a `DocumentParser` trait with two implementations:
-
-- `PlainTextParser` returns the raw text unchanged
-- `MarkdownParser` performs a light cleanup pass
-
-The Markdown parser currently:
-
-- trims whitespace
-- skips empty lines
-- skips fenced code block markers
-- removes bold markers by replacing `**`
-
-This keeps the parsing logic intentionally lightweight while still making Markdown reasonably searchable.
-
-### 3. Analysis
-
-`src/analyzer.rs` converts text into tokens.
-
-It performs:
-
-- lowercase normalization
-- splitting on whitespace and ASCII punctuation
-- removal of stop words
-- very simple heuristic stemming
-
-Examples of stemming behavior:
-
-- `running` -> `runn`
-- `called` -> `call`
-- `happiness` -> `happi`
-- `documents` -> `document`
-
-This is not a full linguistic stemmer, but it is fast and easy to understand.
-
-### 4. Indexing
-
-`src/index.rs` stores search data in an inverted index:
-
-- a `HashMap<String, Vec<Posting>>` maps each term to a list of postings
-- each `Posting` contains a `document_id` and `frequency`
-- a separate registry maps document IDs back to their original file paths
-
-When a document is ingested:
-
-1. it receives a document ID
-2. its tokens are counted
-3. each unique term creates or extends a posting list
-4. the posting records document frequency information
-
-### 5. Searching
-
-`src/searcher.rs` performs AND-style search over the query tokens.
-
-If a query contains multiple terms, ZynSearch returns only documents that contain every term after analysis.
-
-That means the query:
-
-```text
-rust search engine
-```
-
-behaves like:
-
-- tokenize the query
-- look up each token in the index
-- intersect the matching document ID sets
-- map document IDs back to file paths
-
-### 6. Persistence
-
-`src/storage.rs` contains a binary serializer/deserializer for the index.
-
-The format currently writes:
-
-- a file signature
-- document count
-- document registry entries
-- term count
-- term entries
-- posting lists
-
-It also includes a `ZeroCopyReader` helper for reading postings from a byte slice without fully reconstructing the entire index.
-
-## Supported File Types
-
-By default, the app indexes:
-
-- `.txt`
-- `.md`
-
-You can change the allowed extensions in `src/main.rs`:
-
-```rust
-let allowed_extensions = vec!["txt".to_string(), "md".to_string()];
-```
-
-## Tokenization And Search Rules
-
-ZynSearch currently follows a fairly strict, predictable text model.
-
-### Analyzer rules
-
-- everything is converted to lowercase
-- tokens are split on whitespace and ASCII punctuation
-- tokens shorter than 2 characters are skipped
-- stop words are removed
-- simple suffix stripping is applied for common endings
-
-### Search rules
-
-- search is token-based
-- search terms are analyzed the same way as document text
-- multiple terms are combined using intersection logic
-- if any query token is missing from the index, the result is empty
-
-### Stop words
-
-The default stop-word list includes common high-frequency words such as:
-
-- `the`
-- `is`
-- `in`
-- `at`
-- `and`
-- `or`
-- `with`
-- `for`
-
-## Persistence Format
-
-The serializer writes a compact binary layout with little-endian integers.
-
-High-level structure:
-
-```text
-signature
-document_count
-  document_id
-  path_length
-  path_bytes
-term_count
-  term_length
-  term_bytes
-  posting_count
-    posting document_id
-    posting frequency
-```
-
-Important note:
-
-- the persistence layer is binary, not human-readable
-- the format assumes the same internal type sizes and structure on read and write
-- `StorageManager` and `ZeroCopyReader` are currently present as infrastructure for future save/load workflows
+- read [`crates/zynsearch-core/README.md`](/home/knny/Dev-Life/ZynSearch/crates/zynsearch-core/README.md)
+- inspect [`crates/zynsearch-server/src/http.rs`](/home/knny/Dev-Life/ZynSearch/crates/zynsearch-server/src/http.rs)
+- review [`proto/README.md`](/home/knny/Dev-Life/ZynSearch/proto/README.md)
+- explore the SDK README files in `sdks/`
 
 ## Repository Layout
 
 ```text
 .
-├── Cargo.toml
-├── readme.md
-├── zynsearch.config.json
-├── proto/
-│   ├── buf.yaml              # Buf module descriptor (lint + breaking rules)
-│   ├── buf.gen.yaml          # Codegen plugin config (Go, Python, TS, Java, C#, …)
-│   ├── README.md             # How to generate a client in any language
-│   └── zynsearch/
-│       └── v1/
-│           └── zynsearch.proto
 ├── crates/
-│   ├── zynsearch-core/       # Pure engine — embeddable as a Rust library
-│   ├── zynsearch-server/     # gRPC + TCP server binary
-│   └── zynsearch-cli/        # Thin CLI shell over core
-├── docs/
-│   └── todo.md
-└── test_corpus/
+│   ├── zynsearch-core/
+│   ├── zynsearch-server/
+│   └── zynsearch-cli/
+├── sdks/
+│   ├── zynsearch-go/
+│   ├── zynsearch-js/
+│   └── zynsearch-py/
+├── proto/
+└── docs/
 ```
 
-## Getting Started
+## Design Philosophy
 
-### Prerequisites
+ZynSearch is trying to be three things at once:
 
-- Rust toolchain
-- `cargo`
+- simple enough to learn from
+- expressive enough to build on
+- practical enough to ship
 
-### Build
+That means the repository intentionally keeps the engine core and the transport layers separate.
+The result is a cleaner mental model and a better SDK story.
 
-```bash
-cargo build
-```
+## Next Steps
 
-### Run
+If you are exploring the repo for the first time, a good path is:
 
-```bash
-cargo run
-```
+1. read the core README
+2. skim the protocol README
+3. open the server HTTP implementation
+4. inspect one SDK client
 
-When the program starts, it:
-
-- scans the current directory
-- indexes files with allowed extensions
-- enters an interactive search prompt
-
-### Search
-
-Type a query and press Enter.
-
-Examples:
-
-```text
-rust
-markdown parser
-search engine
-```
-
-Type `exit` or `quit` to leave the prompt.
-
-## Usage
-
-1. Place searchable `.txt` or `.md` files in the directory tree you want to scan.
-2. Run the application with `cargo run`.
-3. Wait for indexing to complete.
-4. Enter search terms at the prompt.
-5. Review the matching file paths.
-
-## gRPC API
-
-ZynSearch ships a first-class gRPC interface. The canonical `.proto` file lives at
-`proto/zynsearch/v1/zynsearch.proto` and can be used to generate a fully-typed client
-in any language without running a ZynSearch binary.
-
-### RPCs
-
-| RPC            | Type                 | Description                                           |
-| -------------- | -------------------- | ----------------------------------------------------- |
-| `Index`        | unary                | Index a single document                               |
-| `Search`       | unary                | Query the index, receive all hits at once             |
-| `Delete`       | unary                | Remove a document by numeric ID or source path        |
-| `BulkIndex`    | **client streaming** | Stream many documents over one persistent connection  |
-| `SearchStream` | **server streaming** | Receive scored results incrementally as shards finish |
-
-### Generating a client
-
-The quickest path is the [Buf CLI](https://buf.build):
-
-```bash
-# Install Buf once
-brew install bufbuild/buf/buf   # macOS / Linux
-
-# Generate stubs for all languages defined in buf.gen.yaml
-cd proto && buf generate
-```
-
-Raw `protoc` commands, language-specific options, and a Rust `build.rs` snippet are all
-documented in [`proto/README.md`](proto/README.md).
-
-## Examples
-
-### Example Query
-
-```text
-search engine
-```
-
-Expected behavior:
-
-- document text is analyzed into tokens
-- the query is analyzed into tokens
-- only documents containing both `search` and `engine` are returned
-
-### Example Markdown Handling
-
-For a Markdown file containing:
-
-```md
-# Notes
-
-This is **important**.
-```
-
-The parser keeps the content searchable by trimming lines and removing some formatting markers.
-
-## Implementation Notes
-
-### `src/main.rs`
-
-This file orchestrates the whole application:
-
-- crawls the filesystem
-- reads files into strings
-- chooses a parser by extension
-- analyzes the parsed text
-- ingests the document into the engine
-- starts the interactive query loop
-
-### `src/engine.rs`
-
-`SearchEngineCore` wraps the shared index and analyzer in `Arc<RwLock<_>>` and coordinates ingestion and search.
-
-### `src/index.rs`
-
-The inverted index stores term postings and the document registry.
-
-### `src/searcher.rs`
-
-The searcher performs token intersection to find documents that match every query token.
-
-### `src/storage.rs`
-
-The storage layer is designed for binary persistence and zero-copy reads.
-
-### `src/analyzer.rs`
-
-The analyzer performs normalization, filtering, and suffix-based stemming.
-
-### `src/parser.rs`
-
-The parser abstraction makes it easy to support additional document formats later.
-
-### `src/crawler.rs`
-
-The crawler handles recursive discovery of files with allowed extensions.
-
-## Known Limitations
-
-ZynSearch is intentionally minimal, so a few limitations are worth noting:
-
-- search currently behaves like strict AND matching
-- scoring/ranking is not implemented
-- Markdown parsing is lightweight and not fully compliant
-- persistence is binary and tightly coupled to the current data layout
-- `ZeroCopyReader` is still an early utility and may need extra safety checks
-- search results are returned as file paths only, not snippets or highlighted matches
-
-## Future Ideas
-
-If you want to grow ZynSearch, good next steps would be:
-
-- add OR and phrase search
-- add ranking with TF-IDF or BM25
-- improve Markdown stripping and HTML handling
-- support more file types like `.html`, `.json`, or `.csv`
-- add saved index loading on startup
-- expose a web UI
-- generate snippets and highlight query matches
-- benchmark indexing and query time
-
-## License
-
-No license file is currently present in the repository. If you plan to share or publish the project, add one to make usage terms clear.
