@@ -52,4 +52,3 @@ This SDK is a good fit for:
 - data pipelines
 - internal search tooling
 - Python backends that want a simple search client
-

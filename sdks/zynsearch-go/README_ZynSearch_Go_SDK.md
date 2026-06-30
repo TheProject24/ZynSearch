@@ -38,4 +38,3 @@ This SDK is a good fit for:
 - internal tooling
 - background workers
 - API adapters that need a small dependency surface
-

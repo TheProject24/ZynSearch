@@ -45,4 +45,3 @@ This SDK works well for:
 - serverless functions
 - browser-adjacent backends
 - TypeScript application layers
-

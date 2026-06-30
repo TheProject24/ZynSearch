@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZynSearch - Fast, Elegant, Reliable Search Infrastructure</title>
+<meta name="description" content="ZynSearch is a Rust-powered search engine with a secure HTTP REST API, gRPC support, and SDK-friendly design for modern applications.">
+<style>
+:root {
+  --bg: #060814;
+  --bg-2: #0c1122;
+  --bg-3: #11182f;
+  --card: rgba(14, 20, 40, 0.88);
+  --card-2: rgba(17, 24, 47, 0.9);
+  --line: rgba(129, 168, 255, 0.15);
+  --line-2: rgba(255, 255, 255, 0.08);
+  --text: #ecf2ff;
+  --muted: #9eaccd;
+  --muted-2: #6f7d9e;
+  --blue: #52c7ff;
+  --cyan: #7af7ff;
+  --mint: #4ef2b0;
+  --gold: #ffcf6f;
+  --violet: #b58cff;
+  --red: #ff718a;
+  --shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+  --radius: 24px;
+  --radius-sm: 16px;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --sans: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--text);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(82, 199, 255, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 15%, rgba(181, 140, 255, 0.16), transparent 26%),
+    radial-gradient(circle at 50% 80%, rgba(78, 242, 176, 0.12), transparent 28%),
+    linear-gradient(180deg, #050711 0%, #070b18 52%, #05070f 100%);
+  overflow-x: hidden;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.75), transparent 90%);
+  opacity: 0.35;
+}
+a { color: inherit; text-decoration: none; }
+button, input { font: inherit; }
+.wrap {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  backdrop-filter: blur(18px);
+  background: rgba(5, 7, 17, 0.62);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.topbar-inner {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 28%, transparent 32%),
+    linear-gradient(135deg, rgba(82,199,255,0.95), rgba(181,140,255,0.85) 50%, rgba(78,242,176,0.88));
+  box-shadow: 0 12px 30px rgba(82,199,255,0.28);
+  position: relative;
+}
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.35);
+}
+.brand-text strong {
+  display: block;
+  font-size: 0.98rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.brand-text span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.nav {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.nav a {
+  color: var(--muted);
+  font-size: 0.92rem;
+  transition: color 180ms ease, transform 180ms ease;
+}
+.nav a:hover { color: var(--text); transform: translateY(-1px); }
+.nav-toggle {
+  display: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  border-radius: 999px;
+  width: 44px;
+  height: 44px;
+}
+.hero {
+  padding: 84px 0 40px;
+  position: relative;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 28px;
+  align-items: center;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.eyebrow i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+  background: linear-gradient(135deg, var(--mint), var(--cyan));
+  box-shadow: 0 0 18px rgba(78,242,176,0.55);
+}
+h1 {
+  font-size: clamp(3.2rem, 7vw, 6.5rem);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+  margin: 18px 0 18px;
+  max-width: 10ch;
+}
+.gradient-text {
+  background: linear-gradient(120deg, #ffffff 0%, #d9e8ff 22%, #73d8ff 45%, #bfa0ff 68%, #ffffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  background-size: 200% 200%;
+  animation: shimmer 9s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%,100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.lede {
+  max-width: 64ch;
+  font-size: 1.06rem;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 0 0 28px;
+}
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+.btn {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 14px 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn-primary {
+  background: linear-gradient(135deg, rgba(82,199,255,0.98), rgba(181,140,255,0.9));
+  color: #08101d;
+  box-shadow: 0 16px 40px rgba(82,199,255,0.22);
+}
+.btn-secondary {
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+}
+.chip-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.chip {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  color: #d6e5ff;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.status-panel {
+  background: linear-gradient(180deg, rgba(17, 24, 47, 0.92), rgba(10, 15, 31, 0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 28px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.status-panel::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle, rgba(82,199,255,0.12), transparent 42%),
+    radial-gradient(circle at 70% 30%, rgba(78,242,176,0.12), transparent 28%);
+  animation: drift 14s linear infinite;
+}
+@keyframes drift {
+  from { transform: rotate(0deg) scale(1); }
+  to { transform: rotate(360deg) scale(1.08); }
+}
+.panel-head, .section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.panel-title, .section-kicker {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.lights {
+  display: flex;
+  gap: 8px;
+}
+.light {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.16);
+}
+.light:nth-child(1) { background: #ff5f56; }
+.light:nth-child(2) { background: #ffbd2e; }
+.light:nth-child(3) { background: #27c93f; }
+.terminal {
+  margin-top: 18px;
+  border-radius: 20px;
+  background: rgba(5, 7, 17, 0.9);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 18px;
+  font-family: var(--mono);
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.terminal-line {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: rise 600ms ease forwards;
+}
+@keyframes rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+.prompt { color: var(--mint); }
+.kw { color: var(--blue); }
+.num { color: var(--gold); }
+.ok { color: var(--mint); }
+.warn { color: var(--red); }
+.muted { color: var(--muted); }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 26px;
+}
+.stat {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  padding: 18px;
+}
+.stat strong {
+  display: block;
+  font-size: 1.6rem;
+  letter-spacing: -0.04em;
+}
+.stat span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+section {
+  padding: 72px 0;
+}
+.section-title {
+  margin: 10px 0 16px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  letter-spacing: -0.04em;
+}
+.section-copy {
+  max-width: 70ch;
+  color: var(--muted);
+  line-height: 1.8;
+  margin: 0;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+.card {
+  background: linear-gradient(180deg, rgba(17, 24, 47, 0.92), rgba(10, 14, 30, 0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+  position: relative;
+  overflow: hidden;
+}
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(82,199,255,0.08), transparent 35%, rgba(181,140,255,0.05));
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.card:hover::after { opacity: 1; }
+.card:hover { border-color: rgba(122,247,255,0.22); }
+.icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+}
+.icon.one { background: rgba(82,199,255,0.12); color: var(--cyan); }
+.icon.two { background: rgba(78,242,176,0.12); color: var(--mint); }
+.icon.three { background: rgba(181,140,255,0.12); color: var(--violet); }
+.icon.four { background: rgba(255,207,111,0.12); color: var(--gold); }
+.card h3 {
+  margin: 0 0 10px;
+  font-size: 1.08rem;
+}
+.card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+.pipeline {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 18px;
+  align-items: start;
+  margin-top: 28px;
+}
+.flow {
+  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.flow-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.flow-step:last-child { border-bottom: 0; }
+.step-num {
+  min-width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--cyan);
+}
+.flow-step strong { display: block; margin-bottom: 6px; }
+.flow-step p { margin: 0; color: var(--muted); line-height: 1.7; }
+.diagram {
+  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.diagram svg { width: 100%; height: auto; display: block; }
+.band {
+  margin-top: 22px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #d8e3fb;
+  font-size: 0.9rem;
+}
+.api-panel {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 18px;
+  margin-top: 28px;
+}
+.api-list, .code-panel {
+  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.api-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.api-item:last-child { border-bottom: 0; }
+.verb {
+  font-family: var(--mono);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.v-post { background: rgba(78,242,176,0.1); color: var(--mint); }
+.v-get { background: rgba(82,199,255,0.1); color: var(--cyan); }
+.v-del { background: rgba(255,113,138,0.1); color: var(--red); }
+.api-item strong { display: block; margin-bottom: 4px; }
+.api-item span { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
+.code-panel pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: #dfe9ff;
+}
+.code-tabbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.code-tab {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.code-tab.active {
+  color: #07111f;
+  background: linear-gradient(135deg, var(--cyan), var(--violet));
+}
+.demo {
+  margin-top: 28px;
+  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 28px;
+  padding: 24px;
+}
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.demo-form label {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.demo-form input, .demo-form textarea, .demo-form select {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  outline: none;
+}
+.demo-form textarea { min-height: 120px; resize: vertical; }
+.demo-form input:focus, .demo-form textarea:focus, .demo-form select:focus {
+  border-color: rgba(122,247,255,0.35);
+  box-shadow: 0 0 0 4px rgba(82,199,255,0.08);
+}
+.result {
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(5,7,17,0.92);
+  padding: 18px;
+  min-height: 260px;
+  font-family: var(--mono);
+  white-space: pre-wrap;
+}
+.footer {
+  padding: 42px 0 60px;
+  color: var(--muted-2);
+  font-size: 0.94rem;
+}
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.hero .reveal { transition-delay: 120ms; }
+.hero .reveal:nth-child(2) { transition-delay: 180ms; }
+.hero .reveal:nth-child(3) { transition-delay: 240ms; }
+.hero .reveal:nth-child(4) { transition-delay: 300ms; }
+.accent-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(122,247,255,0.5), rgba(181,140,255,0.4), transparent);
+  margin: 24px 0;
+}
+@media (max-width: 980px) {
+  .hero-grid, .pipeline, .api-panel, .demo-grid, .grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  h1 { max-width: none; }
+  .nav { display: none; }
+  .nav.open {
+    display: flex;
+    width: 100%;
+    padding: 14px 0 6px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .topbar-inner { flex-wrap: wrap; }
+  .nav-toggle { display: inline-grid; place-items: center; }
+}
+@media (max-width: 640px) {
+  .wrap, .topbar-inner { width: min(100% - 24px, 1180px); }
+  .hero { padding-top: 46px; }
+  h1 { font-size: clamp(2.6rem, 14vw, 4rem); }
+  .stats { grid-template-columns: 1fr; }
+  .btn { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top" aria-label="ZynSearch home">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div class="brand-text">
+        <strong>ZynSearch</strong>
+        <span>Fast search, elegant delivery</span>
+      </div>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">Menu</button>
+    <nav class="nav" id="nav">
+      <a href="#engine">Engine</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#api">API</a>
+      <a href="#demo">Demo</a>
+      <a href="#sdk">SDKs</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow reveal"><i></i> Rust-powered search infrastructure</div>
+          <h1 class="reveal"><span class="gradient-text">Speed, elegance, and reliability</span> for modern search.</h1>
+          <p class="lede reveal">
+            ZynSearch is a secure, SDK-ready search platform built for teams that want something sharper than a demo:
+            a Rust core, a polished HTTP REST API, gRPC support, and a path to production that feels deliberate.
+          </p>
+          <div class="hero-actions reveal">
+            <a class="btn btn-primary" href="#demo">Explore the API</a>
+            <a class="btn btn-secondary" href="#pipeline">See the engine</a>
+          </div>
+          <div class="chip-row reveal" aria-label="Highlights">
+            <span class="chip">HTTP + TLS</span>
+            <span class="chip">Basic Auth</span>
+            <span class="chip">gRPC contract</span>
+            <span class="chip">Rust core</span>
+            <span class="chip">SDK-friendly JSON</span>
+          </div>
+          <div class="stats reveal">
+            <div class="stat">
+              <strong>3</strong>
+              <span>Primary endpoints in the REST surface</span>
+            </div>
+            <div class="stat">
+              <strong>2</strong>
+              <span>Secure layers: TLS and authentication</span>
+            </div>
+            <div class="stat">
+              <strong>1</strong>
+              <span>Unified engine powering every transport</span>
+            </div>
+            <div class="stat">
+              <strong>24/7</strong>
+              <span>Ways to embed, serve, and integrate</span>
+            </div>
+          </div>
+        </div>
+        <aside class="status-panel reveal">
+          <div class="panel-head">
+            <div class="panel-title">Live system view</div>
+            <div class="lights" aria-hidden="true">
+              <span class="light"></span><span class="light"></span><span class="light"></span>
+            </div>
+          </div>
+          <div class="terminal" id="terminal">
+            <div class="terminal-line" style="animation-delay: 120ms"><span class="prompt">$</span> boot zynsearch --protocol <span class="kw">http</span></div>
+            <div class="terminal-line" style="animation-delay: 420ms"><span class="muted">-</span> HTTP router online</div>
+            <div class="terminal-line" style="animation-delay: 720ms"><span class="muted">-</span> Basic Auth enabled</div>
+            <div class="terminal-line" style="animation-delay: 1020ms"><span class="muted">-</span> TLS ready for production traffic</div>
+            <div class="terminal-line" style="animation-delay: 1320ms"><span class="muted">-</span> Query pipeline: analyzer -> index -> scorer</div>
+            <div class="terminal-line" style="animation-delay: 1620ms"><span class="ok">OK</span> ZynSearch is serving with a calm, fast heartbeat.</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="engine" class="reveal">
+      <div class="section-kicker">Engine</div>
+      <h2 class="section-title">Built like a product, not a prototype.</h2>
+      <p class="section-copy">
+        ZynSearch is deliberately split into clear layers so the core remains embeddable while the server and SDKs
+        stay thin, secure, and easy to reason about.
+      </p>
+      <div class="grid-3">
+        <article class="card">
+          <div class="icon one">FAST</div>
+          <h3>Fast indexing and retrieval</h3>
+          <p>Documents move through analysis and into the inverted index with a direct, cache-friendly flow.</p>
+        </article>
+        <article class="card">
+          <div class="icon two">LOCK</div>
+          <h3>Secure by default posture</h3>
+          <p>HTTP auth plus TLS gives SDK users a straightforward, standard connection pattern.</p>
+        </article>
+        <article class="card">
+          <div class="icon three">FLOW</div>
+          <h3>Clear transport boundaries</h3>
+          <p>REST for easy consumption, gRPC for typed integrations, core for embedding.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="pipeline" class="reveal">
+      <div class="section-kicker">Pipeline</div>
+      <h2 class="section-title">A search flow you can actually picture.</h2>
+      <p class="section-copy">
+        From query text to ranked results, the system keeps each step visible and understandable. That makes it easier to
+        ship, debug, and extend.
+      </p>
+      <div class="pipeline">
+        <div class="flow">
+          <div class="flow-step">
+            <div class="step-num">01</div>
+            <div>
+              <strong>Analyze</strong>
+              <p>Normalize incoming content into a stable token stream with the core analyzer.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">02</div>
+            <div>
+              <strong>Index</strong>
+              <p>Store document terms in the inverted index and preserve document identity for later lookup.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">03</div>
+            <div>
+              <strong>Score</strong>
+              <p>Rank query matches so the best results rise quickly and consistently.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">04</div>
+            <div>
+              <strong>Serve</strong>
+              <p>Deliver the same capability through HTTP, gRPC, or embedding without duplicating the engine.</p>
+            </div>
+          </div>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 720 420" role="img" aria-label="ZynSearch architecture diagram">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="1">
+                <stop offset="0%" stop-color="#52c7ff"/>
+                <stop offset="100%" stop-color="#b58cff"/>
+              </linearGradient>
+              <linearGradient id="g2" x1="0" x2="1">
+                <stop offset="0%" stop-color="#4ef2b0"/>
+                <stop offset="100%" stop-color="#7af7ff"/>
+              </linearGradient>
+            </defs>
+            <rect x="24" y="24" width="672" height="372" rx="28" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)"/>
+            <rect x="60" y="78" width="150" height="76" rx="18" fill="rgba(82,199,255,0.08)" stroke="rgba(82,199,255,0.35)"/>
+            <rect x="60" y="254" width="150" height="76" rx="18" fill="rgba(181,140,255,0.08)" stroke="rgba(181,140,255,0.35)"/>
+            <rect x="285" y="90" width="160" height="96" rx="18" fill="rgba(78,242,176,0.08)" stroke="rgba(78,242,176,0.35)"/>
+            <rect x="285" y="236" width="160" height="96" rx="18" fill="rgba(255,207,111,0.08)" stroke="rgba(255,207,111,0.35)"/>
+            <rect x="518" y="128" width="144" height="162" rx="18" fill="rgba(122,247,255,0.07)" stroke="rgba(122,247,255,0.35)"/>
+            <text x="135" y="123" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Documents</text>
+            <text x="135" y="299" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">SDKs</text>
+            <text x="365" y="140" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Core Engine</text>
+            <text x="365" y="288" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Search API</text>
+            <text x="590" y="208" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Clients</text>
+            <line x1="210" y1="116" x2="285" y2="136" stroke="url(#g1)" stroke-width="4" stroke-linecap="round"/>
+            <line x1="210" y1="292" x2="285" y2="284" stroke="url(#g1)" stroke-width="4" stroke-linecap="round"/>
+            <line x1="445" y1="142" x2="518" y2="208" stroke="url(#g2)" stroke-width="4" stroke-linecap="round"/>
+            <line x1="445" y1="284" x2="518" y2="208" stroke="url(#g2)" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="285" cy="136" r="6" fill="#52c7ff"/>
+            <circle cx="285" cy="284" r="6" fill="#b58cff"/>
+            <circle cx="518" cy="208" r="6" fill="#7af7ff"/>
+          </svg>
+          <div class="band">
+            <span class="pill">Rust core</span>
+            <span class="pill">Axum REST</span>
+            <span class="pill">Tonic gRPC</span>
+            <span class="pill">SDK-ready JSON</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="api" class="reveal">
+      <div class="section-kicker">API</div>
+      <h2 class="section-title">A clean contract for real integrations.</h2>
+      <p class="section-copy">
+        The HTTP surface is intentionally small. That makes it easier for SDKs to stay thin, error handling to stay
+        consistent, and your deployment story to stay dependable.
+      </p>
+      <div class="api-panel">
+        <div class="api-list">
+          <div class="api-item">
+            <div>
+              <strong>POST /index</strong>
+              <span>Insert or replace documents with JSON bodies that are easy for SDKs to marshal.</span>
+            </div>
+            <span class="verb v-post">POST</span>
+          </div>
+          <div class="api-item">
+            <div>
+              <strong>GET /search</strong>
+              <span>Fetch ranked results using query parameters that fit browser, CLI, and SDK use.</span>
+            </div>
+            <span class="verb v-get">GET</span>
+          </div>
+          <div class="api-item">
+            <div>
+              <strong>DELETE /index/:id</strong>
+              <span>Remove a document by numeric ID or source key without complicating the client layer.</span>
+            </div>
+            <span class="verb v-del">DELETE</span>
+          </div>
+        </div>
+        <div class="code-panel">
+          <div class="code-tabbar">
+            <button class="code-tab active" data-lang="http">HTTP</button>
+            <button class="code-tab" data-lang="json">JSON</button>
+            <button class="code-tab" data-lang="error">Error</button>
+          </div>
+          <pre id="codeSample">curl -u username:password https://localhost:7777/search?q=rust+search&amp;limit=5</pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo" class="reveal">
+      <div class="section-kicker">Demo</div>
+      <h2 class="section-title">Try the product story in the browser.</h2>
+      <p class="section-copy">
+        This sandbox simulates how a client talks to ZynSearch. It is not a backend, but it shows the shape of the
+        requests and the kind of calm, structured response model the SDKs consume.
+      </p>
+      <div class="demo">
+        <div class="demo-grid">
+          <form class="demo-form" id="demoForm">
+            <label for="endpoint">Endpoint</label>
+            <input id="endpoint" value="https://search.example.com" />
+            <label for="query">Query</label>
+            <input id="query" value="rust search engine" />
+            <label for="content">Document content</label>
+            <textarea id="content">ZynSearch is a fast Rust search engine with a secure HTTP API and SDK-ready design.</textarea>
+            <label for="mode">Action</label>
+            <select id="mode">
+              <option value="search">Search</option>
+              <option value="index">Index</option>
+              <option value="delete">Delete</option>
+            </select>
+            <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Run simulation</button>
+          </form>
+          <div class="result" id="result">
+{ "status": "ready", "message": "Fill in the form and run the simulation." }</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sdk" class="reveal">
+      <div class="section-kicker">SDKs</div>
+      <h2 class="section-title">One backend, many languages.</h2>
+      <p class="section-copy">
+        The design goal is simple: every SDK should feel native in its own ecosystem while talking to the same secure,
+        well-defined API surface underneath.
+      </p>
+      <div class="grid-3">
+        <article class="card">
+          <div class="icon one">JS</div>
+          <h3>JavaScript / TypeScript</h3>
+          <p>Async-first clients for Node.js and modern TypeScript services.</p>
+        </article>
+        <article class="card">
+          <div class="icon two">Py</div>
+          <h3>Python</h3>
+          <p>Sync and async wrappers for scripts, notebooks, and production workflows.</p>
+        </article>
+        <article class="card">
+          <div class="icon four">Go</div>
+          <h3>Go</h3>
+          <p>Small, direct clients for backend services and internal infrastructure.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      ZynSearch is shaped to feel fast in motion, calm in operation, and reliable in the long run.
+    </footer>
+  </div>
+</main>
+
+<script>
+  const reveals = document.querySelectorAll('.reveal, .hero .reveal, .terminal-line');
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible', 'vis');
+        observer.unobserve(entry.target);
+      }
+    }
+  }, { threshold: 0.12 });
+  reveals.forEach(el => observer.observe(el));
+
+  const navToggle = document.getElementById('navToggle');
+  const nav = document.getElementById('nav');
+  navToggle?.addEventListener('click', () => {
+    nav.classList.toggle('open');
+  });
+
+  const codeSample = document.getElementById('codeSample');
+  const tabs = document.querySelectorAll('.code-tab');
+  const samples = {
+    http: 'curl -u username:password https://localhost:7777/search?q=rust+search&limit=5',
+    json: JSON.stringify({
+      source_id: "docs/guide.md",
+      content: "ZynSearch delivers fast and elegant search.",
+      replace_existing: true
+    }, null, 2),
+    error: JSON.stringify({
+      error: {
+        code: "unauthorized",
+        message: "invalid or missing credentials"
+      }
+    }, null, 2)
+  };
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      codeSample.textContent = samples[tab.dataset.lang];
+    });
+  });
+
+  const demoForm = document.getElementById('demoForm');
+  const result = document.getElementById('result');
+  demoForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const endpoint = document.getElementById('endpoint').value.trim();
+    const query = document.getElementById('query').value.trim();
+    const content = document.getElementById('content').value.trim();
+    const mode = document.getElementById('mode').value;
+
+    const payload = {
+      endpoint,
+      mode,
+      request: mode === 'search'
+        ? { q: query, limit: 5, explain: true }
+        : mode === 'index'
+          ? { source_id: 'docs/live.md', content, replace_existing: true }
+          : { id: 'docs/live.md' },
+      response: mode === 'search'
+        ? {
+            query,
+            results: [
+              { document_id: 1, source_id: 'docs/live.md', score: 12.84, title: 'live.md' },
+              { document_id: 7, source_id: 'docs/sdk.md', score: 10.21, title: 'sdk.md' }
+            ],
+            stats: { total_hits: 2, truncated: false }
+          }
+        : mode === 'index'
+          ? { document_id: 42, source_id: 'docs/live.md', status: 'created' }
+          : { document_id: 42, source_id: 'docs/live.md', status: 'deleted' }
+    };
+
+    result.textContent = JSON.stringify(payload, null, 2);
+  });
+</script>
+</body>
+</html>

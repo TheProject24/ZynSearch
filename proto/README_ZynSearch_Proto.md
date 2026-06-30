@@ -47,4 +47,3 @@ The gRPC contract and the HTTP API expose the same product idea through differen
 
 - REST for SDKs, simple integrations, and web-friendly clients
 - gRPC for typed services and higher-throughput machine-to-machine traffic
-
