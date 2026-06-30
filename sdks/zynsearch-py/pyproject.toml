@@ -1,0 +1,16 @@
+[project]
+name = "zynsearch-py"
+version = "0.1.0"
+description = "A blistering fast sync/async client for ZynSearch"
+readme = "README.md"
+authors = [
+    { name = "Kenny", email = "156021433+TheProject24@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.24.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
