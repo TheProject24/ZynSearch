@@ -2,12 +2,12 @@ use std::path::Path;
 use tokio::net::TcpListener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use zynsearch::engine::SearchEngineCore;
-use zynsearch::storage::StorageManager;
-use zynsearch::config::{load_app_config, AppConfig, IngestionMode, ProtocolMode};
-use zynsearch::ingestion::{ingest_and_persist, LocalDirIngestionSource, S3IngestionSource};
-use zynsearch::query_pipeline::{format_results, parse_query, QueryCoordinator};
-use zynsearch::multi_protocol::ZynQuery;
+use zynsearch_core::engine::SearchEngineCore;
+use zynsearch_core::storage::StorageManager;
+use zynsearch_core::config::{load_app_config, AppConfig, IngestionMode, ProtocolMode};
+use zynsearch_core::ingestion::{ingest_and_persist, LocalDirIngestionSource, S3IngestionSource};
+use zynsearch_core::query_pipeline::{format_results, parse_query, QueryCoordinator};
+use zynsearch_core::multi_protocol::ZynQuery;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
