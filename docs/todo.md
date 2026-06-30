@@ -63,7 +63,7 @@ To handle production traffic at scale, the single node should support network pr
 //TODO!
 - [x] Implement data partitioning (sharding): distribute document indices across independent cluster instances by hashing incoming source ID values.
 //TODO!
-- [ ] Construct a scatter-gather query coordinator: route incoming queries across multiple search nodes simultaneously and combine the results into a unified sorted response list.
+- [x] Construct a scatter-gather query coordinator: route incoming queries across multiple search nodes simultaneously and combine the results into a unified sorted response list.
 
 
 ## Phase 6: Plug-and-Play Distribution Layer
@@ -72,7 +72,7 @@ ZynSearch should be consumable by any language or framework without friction. Th
 
 ### 6.1 Workspace Restructure
 //TODO!
-- [ ] Restructure the repository into a Cargo workspace with three crates: `zynsearch-core` (pure engine, no network concern), `zynsearch-server` (network layer), and `zynsearch-cli` (thin binary shell over core).
+- [x] Restructure the repository into a Cargo workspace with three crates: `zynsearch-core` (pure engine, no network concern), `zynsearch-server` (network layer), and `zynsearch-cli` (thin binary shell over core).
 //TODO!
 - [ ] Ensure `zynsearch-core` is independently publishable to crates.io so Rust projects can embed the engine directly without running a server.
 

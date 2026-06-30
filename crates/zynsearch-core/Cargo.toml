@@ -1,7 +1,12 @@
 [package]
 name = "zynsearch-core"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
+description = "Core search engine for ZynSearch"
+readme = "README.md"
+publish = true
+keywords = ["search", "inverted-index", "retrieval"]
+categories = ["database", "text-processing"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive", "env"] }
