@@ -325,7 +325,7 @@ impl ZynGrpcService {
         let converted = results
             .iter()
             .enumerate()
-            .filter_map(|(rank, result)| self.convert_search_result(rank, *result, request.explain))
+            .filter_map(|(rank, result)| self.convert_search_result(rank, result.clone(), request.explain))
             .collect::<Vec<_>>();
 
         let stats = SearchStats {
@@ -543,8 +543,8 @@ impl ZynSearchService for ZynGrpcService {
             let mut streamed = 0u32;
             let result_rx = coordinator.execute_streaming(query);
 
-            for core_result in result_rx {
-                let Some(result) = service.convert_search_result(core_result, explain) else {
+            for (rank, core_result) in result_rx.into_iter().enumerate() {
+                let Some(result) = service.convert_search_result(rank, core_result, explain) else {
                     continue;
                 };
                 streamed += 1;
