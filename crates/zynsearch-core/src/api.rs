@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::engine::SearchEngineCore;
 use crate::ingestion::{self, IngestionSource};
+use crate::index::DocumentSourceKind;
 use crate::query_pipeline::QueryCoordinator;
 use crate::top_k::SearchResult;
 
@@ -20,17 +21,22 @@ impl ZynSearch {
 
     /// Index a document from raw text.
     pub fn index_text(&self, source_id: impl Into<String>, raw_text: impl AsRef<str>) {
-        self.core.ingest_document_text(&source_id.into(), raw_text.as_ref());
+        self.core.ingest_document(&source_id.into(), DocumentSourceKind::Opaque, self.core.analyzer.analyze(raw_text.as_ref()));
     }
 
     /// Index a document from raw text.
     pub fn index_document(&self, source_id: impl Into<String>, raw_text: impl AsRef<str>) {
-        self.core.ingest_document_text(&source_id.into(), raw_text.as_ref());
+        self.core.ingest_document(&source_id.into(), DocumentSourceKind::Opaque, self.core.analyzer.analyze(raw_text.as_ref()));
+    }
+
+    /// Index a managed filesystem-backed document so cleanup can remove it if the file disappears.
+    pub fn index_filesystem_document(&self, source_id: impl Into<String>, raw_text: impl AsRef<str>) {
+        self.core.ingest_document(&source_id.into(), DocumentSourceKind::Filesystem, self.core.analyzer.analyze(raw_text.as_ref()));
     }
 
     /// Index a document directly from pre-tokenized tokens.
     pub fn index_tokens(&self, source_id: impl Into<String>, tokens: Vec<String>) {
-        self.core.ingest_document(&source_id.into(), tokens);
+        self.core.ingest_document(&source_id.into(), DocumentSourceKind::Opaque, tokens);
     }
 
     /// Index all candidate files inside a local directory matching default extension rules.
@@ -275,8 +281,8 @@ mod tests {
         let path2 = file2.to_string_lossy().into_owned();
 
         let engine = create_engine();
-        engine.index_text(&path1, "fast red formula car");
-        engine.index_text(&path2, "speed blue formula car");
+        engine.index_filesystem_document(&path1, "fast red formula car");
+        engine.index_filesystem_document(&path2, "speed blue formula car");
 
         let res = engine.search("formula");
         assert_eq!(res.len(), 2);

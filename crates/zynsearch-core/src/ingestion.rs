@@ -9,7 +9,7 @@ use tokio::runtime::Runtime;
 use crate::document_ingest;
 use crate::crawler::DirectoryCrawler;
 use crate::engine::SearchEngineCore;
-use crate::index::InvertedIndex;
+use crate::index::{DocumentSourceKind, InvertedIndex};
 use crate::storage::StorageManager;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,6 +21,7 @@ pub enum IngestionSourceKind {
 #[derive(Debug, Clone)]
 pub struct IngestionDocument {
     pub source_id: String,
+    pub source_kind: DocumentSourceKind,
     pub body: String,
 }
 
@@ -54,6 +55,7 @@ impl IngestionSource for LocalDirIngestionSource {
             let body = document_ingest::normalize_for_indexing(&path_buf)?;
             documents.push(IngestionDocument {
                 source_id: path_buf.to_string_lossy().into_owned(),
+                source_kind: DocumentSourceKind::Filesystem,
                 body,
             });
         }
@@ -136,6 +138,7 @@ impl IngestionSource for S3IngestionSource {
 
                 documents.push(IngestionDocument {
                     source_id: key,
+                    source_kind: DocumentSourceKind::S3Object,
                     body,
                 });
             }
@@ -150,7 +153,8 @@ pub fn ingest_source(engine: &SearchEngineCore, source: &dyn IngestionSource) ->
     let mut indexed = Vec::new();
 
     for document in documents {
-        engine.ingest_document_text(&document.source_id, &document.body);
+        let tokens = engine.analyzer.analyze(&document.body);
+        engine.ingest_document(&document.source_id, document.source_kind, tokens);
         indexed.push(document.source_id);
     }
 
@@ -198,10 +202,12 @@ mod tests {
             docs: vec![
                 IngestionDocument {
                     source_id: "s3://bucket/doc-1.txt".to_string(),
+                    source_kind: DocumentSourceKind::S3Object,
                     body: "fast car on s3".to_string(),
                 },
                 IngestionDocument {
                     source_id: "s3://bucket/doc-2.txt".to_string(),
+                    source_kind: DocumentSourceKind::S3Object,
                     body: "another fast vehicle".to_string(),
                 },
             ],

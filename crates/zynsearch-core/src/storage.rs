@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::ErrorKind::InvalidData;
 use std::io::{Read, Write, BufWriter, BufReader, Result};
-use crate::index::{InvertedIndex, Posting};
+use crate::index::{DocumentMetadata, DocumentSourceKind, InvertedIndex, Posting};
 
 pub struct StorageManager;
 
@@ -20,6 +20,16 @@ impl StorageManager {
             let path_bytes = path.as_bytes();
             writer.write_all(&(path_bytes.len() as u64).to_le_bytes())?;
             writer.write_all(path_bytes)?;
+
+            let metadata = index
+                .document_metadata
+                .get(&doc_id)
+                .cloned()
+                .unwrap_or(DocumentMetadata {
+                    source_id: path.clone(),
+                    source_kind: DocumentSourceKind::Opaque,
+                });
+            writer.write_all(&[metadata.source_kind as u8])?;
         }
 
         let term_count = index.index.len() as u64;
@@ -76,6 +86,28 @@ impl StorageManager {
                 .map_err(|_| std::io::Error::new(InvalidData, "Malformed UTF-8 string path"))?;
 
             inverted_index.document_registry.insert(doc_id, path);
+
+            let mut kind_buf = [0u8; 1];
+            reader.read_exact(&mut kind_buf)?;
+            let source_kind = match kind_buf[0] {
+                0 => DocumentSourceKind::Opaque,
+                1 => DocumentSourceKind::Filesystem,
+                2 => DocumentSourceKind::S3Object,
+                _ => {
+                    return Err(std::io::Error::new(
+                        InvalidData,
+                        "Unknown document source kind",
+                    ));
+                }
+            };
+
+            inverted_index.document_metadata.insert(
+                doc_id,
+                DocumentMetadata {
+                    source_id: inverted_index.document_registry.get(&doc_id).cloned().unwrap_or_default(),
+                    source_kind,
+                },
+            );
         }
 
         reader.read_exact(&mut buf_u64)?;

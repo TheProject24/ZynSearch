@@ -3,6 +3,7 @@
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use crate::index::InvertedIndex;
+use crate::index::DocumentSourceKind;
 use crate::analyzer::TextAnalyzer;
 use crate::searcher::SearchEngine;
 use crate::top_k::SearchResult;
@@ -23,10 +24,10 @@ impl SearchEngineCore {
         }
     }
 
-    pub fn ingest_document(&self, path: &str, tokens: Vec<String>) {
+    pub fn ingest_document(&self, source_id: &str, source_kind: DocumentSourceKind, tokens: Vec<String>) {
         let mut write_guard = self.index.write().unwrap();
 
-        let doc_id = write_guard.register_document(path);
+        let doc_id = write_guard.register_document(source_id, source_kind);
         write_guard.add_document(doc_id, tokens);
     }
 
@@ -41,7 +42,17 @@ impl SearchEngineCore {
         let mut valid_paths = Vec::new();
 
         for path in matching_paths {
-            if self.is_missing_live_document(&path) {
+            let source_kind = {
+                let read_guard = self.index.read().unwrap();
+                read_guard
+                    .document_registry
+                    .iter()
+                    .find(|(_, stored_path)| **stored_path == path)
+                    .and_then(|(&doc_id, _)| read_guard.document_metadata.get(&doc_id).map(|m| m.source_kind))
+                    .unwrap_or(DocumentSourceKind::Opaque)
+            };
+
+            if self.is_missing_live_document(source_kind, &path) {
                 to_delete.push(path);
             } else {
                 valid_paths.push(path);
@@ -83,7 +94,13 @@ impl SearchEngineCore {
             let read_guard = self.index.read().unwrap();
             for result in &results {
                 if let Some(path) = read_guard.document_registry.get(&(result.doc_id as usize)) {
-                    if self.is_missing_live_document(path) {
+                    let source_kind = read_guard
+                        .document_metadata
+                        .get(&(result.doc_id as usize))
+                        .map(|m| m.source_kind)
+                        .unwrap_or(DocumentSourceKind::Opaque);
+
+                    if self.is_missing_live_document(source_kind, path) {
                         to_delete.push(result.doc_id as usize);
                     } else {
                         valid_results.push(*result);
@@ -123,8 +140,8 @@ impl SearchEngineCore {
         let mut to_delete = Vec::new();
         {
             let read_guard = self.index.read().unwrap();
-            for (&doc_id, path) in &read_guard.document_registry {
-                if self.is_missing_live_document(path) {
+            for (&doc_id, metadata) in &read_guard.document_metadata {
+                if self.is_missing_live_document(metadata.source_kind, &metadata.source_id) {
                     to_delete.push(doc_id);
                 }
             }
@@ -140,7 +157,7 @@ impl SearchEngineCore {
 
     pub fn ingest_document_text(&self, path: &str, raw_text: &str) {
         let tokens = self.analyzer.analyze(raw_text);
-        self.ingest_document(path, tokens);
+        self.ingest_document(path, DocumentSourceKind::Opaque, tokens);
     }
 
     pub fn ingest_corpus_dir(&self, corpus_dir: &Path) -> Result<Vec<String>, String> {
@@ -150,7 +167,7 @@ impl SearchEngineCore {
         for path_buf in crawler.run() {
             let normalized = document_ingest::normalize_for_indexing(&path_buf)?;
             let path_str = path_buf.to_string_lossy().into_owned();
-            self.ingest_document_text(&path_str, &normalized);
+            self.ingest_document(&path_str, DocumentSourceKind::Filesystem, self.analyzer.analyze(&normalized));
             indexed.push(path_str);
         }
 
@@ -167,21 +184,11 @@ impl SearchEngineCore {
         });
     }
 
-    fn is_missing_live_document(&self, path: &str) -> bool {
-        if path.starts_with("s3://") {
-            return false;
+    fn is_missing_live_document(&self, source_kind: DocumentSourceKind, source_id: &str) -> bool {
+        match source_kind {
+            DocumentSourceKind::Opaque => false,
+            DocumentSourceKind::S3Object => false,
+            DocumentSourceKind::Filesystem => !Path::new(source_id).exists(),
         }
-
-        let path_ref = Path::new(path);
-        let looks_like_managed_path = path.starts_with("./")
-            || path.starts_with("../")
-            || path.starts_with('/')
-            || path.contains(std::path::MAIN_SEPARATOR);
-
-        if !looks_like_managed_path {
-            return false;
-        }
-
-        !path_ref.exists()
     }
 }

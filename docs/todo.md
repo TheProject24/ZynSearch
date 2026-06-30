@@ -74,7 +74,7 @@ ZynSearch should be consumable by any language or framework without friction. Th
 //TODO!
 - [x] Restructure the repository into a Cargo workspace with three crates: `zynsearch-core` (pure engine, no network concern), `zynsearch-server` (network layer), and `zynsearch-cli` (thin binary shell over core).
 //TODO!
-- [ ] Ensure `zynsearch-core` is independently publishable to crates.io so Rust projects can embed the engine directly without running a server.
+- [x] Ensure `zynsearch-core` is independently publishable to crates.io so Rust projects can embed the engine directly without running a server.
 
 ### 6.2 gRPC Interface
 //TODO!
