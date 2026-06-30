@@ -14,6 +14,7 @@ mod top_k;
 mod positional_queries;
 mod wire_framing;
 mod multi_protocol;
+mod sharding;
 mod multi_reader;
 mod dictionary;
 mod merge_policy;
