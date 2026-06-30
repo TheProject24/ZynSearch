@@ -31,4 +31,8 @@ pub struct Config {
     /// Output format for TCP responses.
     #[arg(short = 'F', long, env = "ZYN_FORMAT", value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
+
+    /// Optional one-shot query. If set, ZynSearch indexes the corpus and prints results instead of running the TCP server.
+    #[arg(long, env = "ZYN_QUERY")]
+    pub query: Option<String>,
 }

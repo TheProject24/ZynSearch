@@ -1,45 +1,16 @@
-mod crawler;
-mod parser;
-mod analyzer;
-mod index;
-mod searcher;
-mod engine;
-mod storage;
-mod memtable;
-mod segment;
-mod boolean_query;
-mod collection_stats;
-mod bm25;
-mod top_k;
-mod positional_queries;
-mod wire_framing;
-mod multi_protocol;
-mod sharding;
-mod sc_ga;
-mod multi_reader;
-mod dictionary;
-mod merge_policy;
-mod compression;
-mod skip_posting;
-mod bm_wand;
-mod layout;
-mod wal;
-mod bitmap;
-mod config; // Register your new config module!
-mod query_pipeline;
-
 use std::path::Path;
 use clap::Parser;
 use tokio::net::TcpListener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use serde::Serialize;
 
-use crawler::DirectoryCrawler;
-use parser::{PlainTextParser, MarkdownParser, DocumentParser};
-use engine::SearchEngineCore;
-use storage::StorageManager;
-use config::Config;
-use query_pipeline::{format_results, parse_query, QueryCoordinator};
+// 1. Import your items from the library target.
+// NOTE: If your package name in Cargo.toml is different, replace 'zynsearch' with that name.
+use zynsearch::engine::SearchEngineCore;
+use zynsearch::storage::StorageManager;
+use zynsearch::config::Config;
+use zynsearch::query_pipeline::{format_results, parse_query, QueryCoordinator};
+use zynsearch::multi_protocol::ZynQuery;
 
 #[derive(Serialize)]
 struct SearchResponse {
@@ -72,12 +43,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Err(e) => {
                 eprintln!("[ERROR] Failed to load DB: {}", e);
-                run_ingestion_pipeline(&shared_engine, &config);
+                run_ingestion_pipeline(&shared_engine, &config)?;
             }
         }
     } else {
         println!("[BOOT] No database found. Initiating corpus crawl...");
-        run_ingestion_pipeline(&shared_engine, &config);
+        run_ingestion_pipeline(&shared_engine, &config)?;
+    }
+
+    if let Some(query) = config.query.clone() {
+        // 2. FIXED: Changed `crate::multi_protocol::ZynQuery` to `ZynQuery` (imported above)
+        let hits = coordinator.execute(ZynQuery { query_string: query.clone(), limit: 10 });
+        println!("{}", String::from_utf8_lossy(&format_results(&hits, config.format)));
+        return Ok(());
     }
 
     // 3. START TCP SERVER
@@ -92,8 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (mut socket, addr) = listener.accept().await?;
         println!("[TCP] Client connected from: {}", addr);
 
-        // Spawn a concurrent Tokio task. This allows thousands of users 
-        // to search simultaneously without blocking each other!
+        // Spawn a concurrent Tokio task.
         let coordinator = coordinator.clone();
         tokio::spawn(async move {
             let mut buffer = [0; 1024];
@@ -141,23 +118,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn run_ingestion_pipeline(engine_core: &std::sync::Arc<SearchEngineCore>, config: &Config) {
+fn run_ingestion_pipeline(engine_core: &std::sync::Arc<SearchEngineCore>, config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     let target_dir = Path::new(&config.corpus_dir);
-    let allowed_extensions = vec!["txt".to_string(), "md".to_string()];
-    let crawler = DirectoryCrawler::new(target_dir, allowed_extensions);
-
-    let discovered_files = crawler.run();
-    for path_buf in discovered_files {
-        let path_str = path_buf.to_string_lossy().into_owned();
-        let raw_content = std::fs::read_to_string(&path_buf).unwrap_or_default();
-        let clean_text = match path_buf.extension().and_then(|ext| ext.to_str()) {
-            Some("md") => MarkdownParser.parse(&raw_content),
-            _ => PlainTextParser.parse(&raw_content),
-        };
-        let tokens = engine_core.analyzer.analyze(&clean_text);
-        engine_core.ingest_document(&path_str, tokens);
-    }
+    let indexed = engine_core.ingest_corpus_dir(target_dir)?;
+    println!("[BOOT] Indexed {} documents from corpus.", indexed.len());
     
     let current_state = engine_core.index.read().unwrap();
     let _ = StorageManager::serialize(&current_state, &config.db_path);
+    Ok(())
 }
