@@ -18,6 +18,7 @@ use zynsearch_core::ingestion::{ingest_and_persist, LocalDirIngestionSource, S3I
 use zynsearch_core::query_pipeline::{format_results, parse_query, QueryCoordinator};
 use zynsearch_core::multi_protocol::ZynQuery;
 use zynsearch_core::top_k::SearchResult as CoreSearchResult;
+mod http;
 
 pub mod zynsearch {
     pub mod v1 {
@@ -83,11 +84,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             run_grpc_server(&config, shared_engine).await?;
         }
         ProtocolMode::Http => {
-            println!("[BOOT] HTTP transport is not built yet. Starting TCP transport.");
-            run_tcp_server(&config, coordinator).await?;
+            run_http_server(&config, shared_engine).await?;
         }
         ProtocolMode::Both => {
-            println!("[BOOT] Starting gRPC transport. HTTP transport will be added in the REST phase.");
+            println!("[BOOT] Starting HTTP transport.");
+            run_http_server(&config, shared_engine.clone()).await?;
             run_grpc_server(&config, shared_engine).await?;
         }
     }
@@ -169,6 +170,49 @@ async fn run_grpc_server(
         .await?;
 
     Ok(())
+}
+
+async fn run_http_server(
+    config: &AppConfig,
+    engine_core: Arc<SearchEngineCore>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let bind_addr = format!("{}:{}", config.runtime.host, config.runtime.port).parse()?;
+    let auth = match (&config.runtime.http_username, &config.runtime.http_password) {
+        (Some(username), Some(password)) => Some(http::HttpAuth::new(username.clone(), password.clone())),
+        _ => None,
+    };
+    let http_auth_enabled = auth.is_some();
+
+    if auth.is_none() {
+        println!("[BOOT] HTTP authentication is disabled. Set ZYN_HTTP_USERNAME and ZYN_HTTP_PASSWORD to secure the API.");
+    }
+
+    let state = http::HttpServerState {
+        coordinator: QueryCoordinator::new(engine_core.clone(), 4),
+        engine_core,
+        db_path: config.storage.db_path.clone(),
+        auth,
+    };
+
+    let tls = match (
+        config.runtime.http_tls_cert_path.as_ref(),
+        config.runtime.http_tls_key_path.as_ref(),
+    ) {
+        (Some(cert_path), Some(key_path)) => Some(http::HttpTlsConfig {
+            cert_path: cert_path.into(),
+            key_path: key_path.into(),
+        }),
+        (None, None) => None,
+        _ => {
+            return Err("both ZYN_HTTP_TLS_CERT_PATH and ZYN_HTTP_TLS_KEY_PATH must be set to enable HTTPS".into());
+        }
+    };
+
+    if tls.is_some() && !http_auth_enabled {
+        println!("[BOOT] HTTPS is enabled. Consider setting Basic Auth too for SDK credential-based access.");
+    }
+
+    http::serve(state, bind_addr, tls).await
 }
 
 fn ingest_corpus(engine_core: &std::sync::Arc<SearchEngineCore>, config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {

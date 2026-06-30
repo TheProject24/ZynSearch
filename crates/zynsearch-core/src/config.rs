@@ -42,6 +42,10 @@ pub struct RuntimeConfig {
     pub protocol: ProtocolMode,
     pub output_format: OutputFormat,
     pub query: Option<String>,
+    pub http_username: Option<String>,
+    pub http_password: Option<String>,
+    pub http_tls_cert_path: Option<String>,
+    pub http_tls_key_path: Option<String>,
 }
 
 impl Default for RuntimeConfig {
@@ -52,6 +56,10 @@ impl Default for RuntimeConfig {
             protocol: ProtocolMode::Tcp,
             output_format: OutputFormat::Text,
             query: None,
+            http_username: None,
+            http_password: None,
+            http_tls_cert_path: None,
+            http_tls_key_path: None,
         }
     }
 }
@@ -259,6 +267,22 @@ pub struct CliArgs {
     #[arg(long, env = "ZYN_QUERY")]
     pub query: Option<String>,
 
+    /// HTTP basic auth username for the REST API.
+    #[arg(long, env = "ZYN_HTTP_USERNAME")]
+    pub http_username: Option<String>,
+
+    /// HTTP basic auth password for the REST API.
+    #[arg(long, env = "ZYN_HTTP_PASSWORD")]
+    pub http_password: Option<String>,
+
+    /// TLS certificate chain path for HTTPS.
+    #[arg(long, env = "ZYN_HTTP_TLS_CERT_PATH")]
+    pub http_tls_cert_path: Option<String>,
+
+    /// TLS private key path for HTTPS.
+    #[arg(long, env = "ZYN_HTTP_TLS_KEY_PATH")]
+    pub http_tls_key_path: Option<String>,
+
     /// Enable periodic cleanup of missing/deleted files from the index.
     #[arg(long, env = "ZYN_CLEANUP_ENABLE")]
     pub enable_periodic_cleanup: Option<bool>,
@@ -270,6 +294,7 @@ pub struct CliArgs {
 
 pub fn load_app_config() -> Result<AppConfig, Box<dyn std::error::Error>> {
     let cli = CliArgs::parse();
+    let cli_protocol = cli.protocol;
     let config_path = cli
         .config
         .clone()
@@ -289,7 +314,7 @@ pub fn load_app_config() -> Result<AppConfig, Box<dyn std::error::Error>> {
     apply_env_file_overrides(&mut config)?;
     apply_cli_overrides(&mut config, &cli, config_path);
     config.distribution.normalize();
-    config.runtime.protocol = config.distribution.to_protocol_mode();
+    config.runtime.protocol = cli_protocol.unwrap_or_else(|| config.distribution.to_protocol_mode());
 
     Ok(config)
 }
@@ -334,6 +359,10 @@ fn apply_env_file_overrides(config: &mut AppConfig) -> Result<(), Box<dyn std::e
             "ZYN_DB_PATH" => config.storage.db_path = value.to_string(),
             "ZYN_CORPUS_DIR" => config.ingestion.corpus_dir = value.to_string(),
             "ZYN_QUERY" => config.runtime.query = Some(value.to_string()),
+            "ZYN_HTTP_USERNAME" => config.runtime.http_username = Some(value.to_string()),
+            "ZYN_HTTP_PASSWORD" => config.runtime.http_password = Some(value.to_string()),
+            "ZYN_HTTP_TLS_CERT_PATH" => config.runtime.http_tls_cert_path = Some(value.to_string()),
+            "ZYN_HTTP_TLS_KEY_PATH" => config.runtime.http_tls_key_path = Some(value.to_string()),
             "ZYN_FORMAT" => {
                 if let Ok(format) = serde_json::from_str::<OutputFormat>(&format!("\"{}\"", value)) {
                     config.runtime.output_format = format;
@@ -410,6 +439,18 @@ fn apply_cli_overrides(config: &mut AppConfig, cli: &CliArgs, config_path: Strin
     }
     if let Some(query) = cli.query.clone() {
         config.runtime.query = Some(query);
+    }
+    if let Some(http_username) = cli.http_username.clone() {
+        config.runtime.http_username = Some(http_username);
+    }
+    if let Some(http_password) = cli.http_password.clone() {
+        config.runtime.http_password = Some(http_password);
+    }
+    if let Some(http_tls_cert_path) = cli.http_tls_cert_path.clone() {
+        config.runtime.http_tls_cert_path = Some(http_tls_cert_path);
+    }
+    if let Some(http_tls_key_path) = cli.http_tls_key_path.clone() {
+        config.runtime.http_tls_key_path = Some(http_tls_key_path);
     }
     if let Some(enable) = cli.enable_periodic_cleanup {
         config.cleanup.enable_periodic_cleanup = enable;

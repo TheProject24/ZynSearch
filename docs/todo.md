@@ -100,11 +100,11 @@ ZynSearch should be consumable by any language or framework without friction. Th
 
 //TODO!
 
-- [ ] Implement an HTTP layer in `zynsearch-server` using `axum`, exposing `POST /index`, `GET /search`, and `DELETE /index/:id` endpoints with JSON request and response bodies.
+- [x] Implement an HTTP layer in `zynsearch-server` using `axum`, exposing `POST /index`, `GET /search`, and `DELETE /index/:id` endpoints with JSON request and response bodies.
       //TODO!
-- [ ] Support startup flags `--protocol http` and `--protocol grpc` (and optionally `--protocol both`) so operators choose their transport at deploy time without recompiling.
+- [x] Support startup flags `--protocol http` and `--protocol grpc` (and optionally `--protocol both`) so operators choose their transport at deploy time without recompiling.
       //TODO!
-- [ ] Return structured JSON error responses with a consistent shape across all HTTP endpoints so SDK authors and consumers can handle errors uniformly.
+- [x] Return structured JSON error responses with a consistent shape across all HTTP endpoints so SDK authors and consumers can handle errors uniformly.
 
 ### 6.4 Language SDKs
 
