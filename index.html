@@ -3,959 +3,954 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZynSearch - Fast, Elegant, Reliable Search Infrastructure</title>
-<meta name="description" content="ZynSearch is a Rust-powered search engine with a secure HTTP REST API, gRPC support, and SDK-friendly design for modern applications.">
+<title>ZynSearch — the engine, opened up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #060814;
-  --bg-2: #0c1122;
-  --bg-3: #11182f;
-  --card: rgba(14, 20, 40, 0.88);
-  --card-2: rgba(17, 24, 47, 0.9);
-  --line: rgba(129, 168, 255, 0.15);
-  --line-2: rgba(255, 255, 255, 0.08);
-  --text: #ecf2ff;
-  --muted: #9eaccd;
-  --muted-2: #6f7d9e;
-  --blue: #52c7ff;
-  --cyan: #7af7ff;
-  --mint: #4ef2b0;
-  --gold: #ffcf6f;
-  --violet: #b58cff;
-  --red: #ff718a;
-  --shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
-  --radius: 24px;
-  --radius-sm: 16px;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --sans: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+/* ============================= TOKENS ============================= */
+:root{
+  --walnut:#241b16;
+  --walnut-2:#332620;
+  --walnut-3:#3d2d24;
+  --paper:#ece3cf;
+  --paper-2:#e2d6ba;
+  --ink:#221a14;
+  --ink-soft:#4a3c30;
+  --brass:#c89a5b;
+  --brass-bright:#e7bd80;
+  --rust:#bd5b34;
+  --sage:#7faa78;
+  --line:rgba(231,189,128,0.18);
+  --shadow:rgba(0,0,0,0.45);
+  --font-display:'Fraunces', serif;
+  --font-body:'IBM Plex Sans', sans-serif;
+  --font-mono:'IBM Plex Mono', monospace;
+  --maxw:1180px;
 }
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-  margin: 0;
-  font-family: var(--sans);
-  color: var(--text);
-  background:
-    radial-gradient(circle at 20% 20%, rgba(82, 199, 255, 0.18), transparent 28%),
-    radial-gradient(circle at 80% 15%, rgba(181, 140, 255, 0.16), transparent 26%),
-    radial-gradient(circle at 50% 80%, rgba(78, 242, 176, 0.12), transparent 28%),
-    linear-gradient(180deg, #050711 0%, #070b18 52%, #05070f 100%);
-  overflow-x: hidden;
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto;}
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
 }
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
+body{
+  margin:0;
+  background:var(--walnut);
   background-image:
-    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(180deg, rgba(0,0,0,0.75), transparent 90%);
-  opacity: 0.35;
-}
-a { color: inherit; text-decoration: none; }
-button, input { font: inherit; }
-.wrap {
-  width: min(1180px, calc(100% - 40px));
-  margin: 0 auto;
-  position: relative;
-  z-index: 1;
-}
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  backdrop-filter: blur(18px);
-  background: rgba(5, 7, 17, 0.62);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.topbar-inner {
-  width: min(1180px, calc(100% - 40px));
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 16px 0;
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 28%, transparent 32%),
-    linear-gradient(135deg, rgba(82,199,255,0.95), rgba(181,140,255,0.85) 50%, rgba(78,242,176,0.88));
-  box-shadow: 0 12px 30px rgba(82,199,255,0.28);
-  position: relative;
-}
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  inset: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.35);
-}
-.brand-text strong {
-  display: block;
-  font-size: 0.98rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.brand-text span {
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-.nav {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.nav a {
-  color: var(--muted);
-  font-size: 0.92rem;
-  transition: color 180ms ease, transform 180ms ease;
-}
-.nav a:hover { color: var(--text); transform: translateY(-1px); }
-.nav-toggle {
-  display: none;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.03);
-  color: var(--text);
-  border-radius: 999px;
-  width: 44px;
-  height: 44px;
-}
-.hero {
-  padding: 84px 0 40px;
-  position: relative;
-}
-.hero-grid {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 28px;
-  align-items: center;
-}
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.03);
-  color: var(--muted);
-  font-size: 0.82rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.eyebrow i {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  display: inline-block;
-  background: linear-gradient(135deg, var(--mint), var(--cyan));
-  box-shadow: 0 0 18px rgba(78,242,176,0.55);
-}
-h1 {
-  font-size: clamp(3.2rem, 7vw, 6.5rem);
-  line-height: 0.96;
-  letter-spacing: -0.05em;
-  margin: 18px 0 18px;
-  max-width: 10ch;
-}
-.gradient-text {
-  background: linear-gradient(120deg, #ffffff 0%, #d9e8ff 22%, #73d8ff 45%, #bfa0ff 68%, #ffffff 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  background-size: 200% 200%;
-  animation: shimmer 9s ease-in-out infinite;
-}
-@keyframes shimmer {
-  0%,100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-.lede {
-  max-width: 64ch;
-  font-size: 1.06rem;
-  line-height: 1.8;
-  color: var(--muted);
-  margin: 0 0 28px;
-}
-.hero-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 30px;
-}
-.btn {
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 14px 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
-}
-.btn:hover { transform: translateY(-2px); }
-.btn-primary {
-  background: linear-gradient(135deg, rgba(82,199,255,0.98), rgba(181,140,255,0.9));
-  color: #08101d;
-  box-shadow: 0 16px 40px rgba(82,199,255,0.22);
-}
-.btn-secondary {
-  border-color: rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.03);
-  color: var(--text);
-}
-.chip-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.chip {
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 0.88rem;
-  color: #d6e5ff;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-}
-.status-panel {
-  background: linear-gradient(180deg, rgba(17, 24, 47, 0.92), rgba(10, 15, 31, 0.96));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 28px;
-  padding: 22px;
-  box-shadow: var(--shadow);
-  position: relative;
-  overflow: hidden;
-}
-.status-panel::before {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  background:
-    radial-gradient(circle, rgba(82,199,255,0.12), transparent 42%),
-    radial-gradient(circle at 70% 30%, rgba(78,242,176,0.12), transparent 28%);
-  animation: drift 14s linear infinite;
-}
-@keyframes drift {
-  from { transform: rotate(0deg) scale(1); }
-  to { transform: rotate(360deg) scale(1.08); }
-}
-.panel-head, .section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.panel-title, .section-kicker {
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 0.76rem;
-  color: var(--muted);
-}
-.lights {
-  display: flex;
-  gap: 8px;
-}
-.light {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.16);
-}
-.light:nth-child(1) { background: #ff5f56; }
-.light:nth-child(2) { background: #ffbd2e; }
-.light:nth-child(3) { background: #27c93f; }
-.terminal {
-  margin-top: 18px;
-  border-radius: 20px;
-  background: rgba(5, 7, 17, 0.9);
-  border: 1px solid rgba(255,255,255,0.08);
-  padding: 18px;
-  font-family: var(--mono);
-  min-height: 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.terminal-line {
-  opacity: 0;
-  transform: translateY(8px);
-  animation: rise 600ms ease forwards;
-}
-@keyframes rise {
-  to { opacity: 1; transform: translateY(0); }
-}
-.prompt { color: var(--mint); }
-.kw { color: var(--blue); }
-.num { color: var(--gold); }
-.ok { color: var(--mint); }
-.warn { color: var(--red); }
-.muted { color: var(--muted); }
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 26px;
-}
-.stat {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 20px;
-  padding: 18px;
-}
-.stat strong {
-  display: block;
-  font-size: 1.6rem;
-  letter-spacing: -0.04em;
-}
-.stat span {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-section {
-  padding: 72px 0;
-}
-.section-title {
-  margin: 10px 0 16px;
-  font-size: clamp(2rem, 4vw, 3rem);
-  letter-spacing: -0.04em;
-}
-.section-copy {
-  max-width: 70ch;
-  color: var(--muted);
-  line-height: 1.8;
-  margin: 0;
-}
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 28px;
-}
-.card {
-  background: linear-gradient(180deg, rgba(17, 24, 47, 0.92), rgba(10, 14, 30, 0.96));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
-  position: relative;
-  overflow: hidden;
-}
-.card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(82,199,255,0.08), transparent 35%, rgba(181,140,255,0.05));
-  opacity: 0;
-  transition: opacity 220ms ease;
-}
-.card:hover::after { opacity: 1; }
-.card:hover { border-color: rgba(122,247,255,0.22); }
-.icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  font-size: 1.2rem;
-  margin-bottom: 16px;
-}
-.icon.one { background: rgba(82,199,255,0.12); color: var(--cyan); }
-.icon.two { background: rgba(78,242,176,0.12); color: var(--mint); }
-.icon.three { background: rgba(181,140,255,0.12); color: var(--violet); }
-.icon.four { background: rgba(255,207,111,0.12); color: var(--gold); }
-.card h3 {
-  margin: 0 0 10px;
-  font-size: 1.08rem;
-}
-.card p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.75;
-}
-.pipeline {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 18px;
-  align-items: start;
-  margin-top: 28px;
-}
-.flow {
-  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius);
-  padding: 24px;
-}
-.flow-step {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.flow-step:last-child { border-bottom: 0; }
-.step-num {
-  min-width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  font-family: var(--mono);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: var(--cyan);
-}
-.flow-step strong { display: block; margin-bottom: 6px; }
-.flow-step p { margin: 0; color: var(--muted); line-height: 1.7; }
-.diagram {
-  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius);
-  padding: 24px;
-}
-.diagram svg { width: 100%; height: auto; display: block; }
-.band {
-  margin-top: 22px;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.pill {
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #d8e3fb;
-  font-size: 0.9rem;
-}
-.api-panel {
-  display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
-  gap: 18px;
-  margin-top: 28px;
-}
-.api-list, .code-panel {
-  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius);
-  padding: 24px;
-}
-.api-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.api-item:last-child { border-bottom: 0; }
-.verb {
-  font-family: var(--mono);
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-.v-post { background: rgba(78,242,176,0.1); color: var(--mint); }
-.v-get { background: rgba(82,199,255,0.1); color: var(--cyan); }
-.v-del { background: rgba(255,113,138,0.1); color: var(--red); }
-.api-item strong { display: block; margin-bottom: 4px; }
-.api-item span { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
-.code-panel pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--mono);
-  font-size: 0.92rem;
-  line-height: 1.7;
-  color: #dfe9ff;
-}
-.code-tabbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.code-tab {
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.03);
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-.code-tab.active {
-  color: #07111f;
-  background: linear-gradient(135deg, var(--cyan), var(--violet));
-}
-.demo {
-  margin-top: 28px;
-  background: linear-gradient(180deg, rgba(17,24,47,0.94), rgba(10,14,30,0.96));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 28px;
-  padding: 24px;
-}
-.demo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-}
-.demo-form label {
-  display: block;
-  font-size: 0.88rem;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.demo-form input, .demo-form textarea, .demo-form select {
-  width: 100%;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.03);
-  color: var(--text);
-  padding: 14px 16px;
-  margin-bottom: 14px;
-  outline: none;
-}
-.demo-form textarea { min-height: 120px; resize: vertical; }
-.demo-form input:focus, .demo-form textarea:focus, .demo-form select:focus {
-  border-color: rgba(122,247,255,0.35);
-  box-shadow: 0 0 0 4px rgba(82,199,255,0.08);
-}
-.result {
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(5,7,17,0.92);
-  padding: 18px;
-  min-height: 260px;
-  font-family: var(--mono);
-  white-space: pre-wrap;
-}
-.footer {
-  padding: 42px 0 60px;
-  color: var(--muted-2);
-  font-size: 0.94rem;
-}
-.reveal {
-  opacity: 0;
-  transform: translateY(22px);
-  transition: opacity 700ms ease, transform 700ms ease;
-}
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-.hero .reveal { transition-delay: 120ms; }
-.hero .reveal:nth-child(2) { transition-delay: 180ms; }
-.hero .reveal:nth-child(3) { transition-delay: 240ms; }
-.hero .reveal:nth-child(4) { transition-delay: 300ms; }
-.accent-line {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(122,247,255,0.5), rgba(181,140,255,0.4), transparent);
-  margin: 24px 0;
-}
-@media (max-width: 980px) {
-  .hero-grid, .pipeline, .api-panel, .demo-grid, .grid-3 {
-    grid-template-columns: 1fr;
-  }
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  h1 { max-width: none; }
-  .nav { display: none; }
-  .nav.open {
-    display: flex;
-    width: 100%;
-    padding: 14px 0 6px;
-    border-top: 1px solid rgba(255,255,255,0.06);
-  }
-  .topbar-inner { flex-wrap: wrap; }
-  .nav-toggle { display: inline-grid; place-items: center; }
-}
-@media (max-width: 640px) {
-  .wrap, .topbar-inner { width: min(100% - 24px, 1180px); }
-  .hero { padding-top: 46px; }
-  h1 { font-size: clamp(2.6rem, 14vw, 4rem); }
-  .stats { grid-template-columns: 1fr; }
-  .btn { width: 100%; justify-content: center; }
-}
+    radial-gradient(circle at 15% 0%, rgba(231,189,128,0.06), transparent 45%),
+    radial-gradient(circle at 100% 30%, rgba(189,91,52,0.05), transparent 40%);
+  color:var(--paper);
+  font-family:var(--font-body);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;}
+h1,h2,h3,h4{font-family:var(--font-display); margin:0; color:var(--paper);}
+p{margin:0 0 1em 0; color:rgba(236,227,207,0.82);}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 32px;}
+code, .mono{font-family:var(--font-mono);}
+::selection{background:var(--brass); color:var(--ink);}
+:focus-visible{outline:2px solid var(--brass-bright); outline-offset:3px; border-radius:3px;}
+
+/* eyebrow / label */
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:0.72rem;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--brass-bright);
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:14px;
+}
+.eyebrow::before{
+  content:'';
+  width:18px; height:1px;
+  background:var(--brass-bright);
+  display:inline-block;
+}
+
+/* ============================= NAV ============================= */
+header.topnav{
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  background:rgba(28,21,16,0.88);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.nav-inner{
+  max-width:var(--maxw); margin:0 auto; padding:14px 32px;
+  display:flex; align-items:center; justify-content:space-between; gap:24px;
+}
+.brand{
+  font-family:var(--font-display); font-weight:700; font-size:1.15rem;
+  letter-spacing:0.01em; color:var(--paper); text-decoration:none;
+  display:flex; align-items:center; gap:10px;
+}
+.brand .tag{
+  width:9px; height:9px; border-radius:1px; background:var(--brass);
+  box-shadow:0 0 0 3px rgba(200,154,91,0.18);
+}
+nav.links{display:flex; gap:22px; flex-wrap:wrap;}
+nav.links a{
+  font-family:var(--font-mono); font-size:0.76rem; letter-spacing:0.04em;
+  text-decoration:none; color:rgba(236,227,207,0.55);
+  padding:6px 2px; border-bottom:1px solid transparent;
+  transition:color .2s, border-color .2s;
+}
+nav.links a:hover, nav.links a.active{ color:var(--brass-bright); border-color:var(--brass-bright); }
+@media (max-width:900px){ nav.links{display:none;} }
+
+/* ============================= HERO ============================= */
+.hero{
+  padding:168px 0 90px;
+  position:relative;
+  overflow:hidden;
+}
+.hero-grid{
+  display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px; align-items:center;
+}
+@media (max-width:980px){ .hero-grid{grid-template-columns:1fr;} }
+.hero h1{
+  font-size:clamp(2.5rem, 5vw, 4.1rem);
+  line-height:1.04;
+  font-weight:600;
+  letter-spacing:-0.01em;
+}
+.hero h1 em{ font-style:italic; color:var(--brass-bright); font-weight:500; }
+.hero .lede{ font-size:1.08rem; max-width:46ch; margin-top:18px; }
+.hero .cta-row{ display:flex; gap:14px; margin-top:30px; flex-wrap:wrap; }
+.btn{
+  font-family:var(--font-mono); font-size:0.82rem; letter-spacing:0.03em;
+  padding:12px 20px; border-radius:3px; text-decoration:none; cursor:pointer;
+  border:1px solid var(--line); transition:transform .15s, background .2s, border-color .2s;
+  display:inline-flex; align-items:center; gap:8px;
+}
+.btn-primary{ background:var(--brass); color:var(--ink); border-color:var(--brass); font-weight:600;}
+.btn-primary:hover{ background:var(--brass-bright); transform:translateY(-1px); }
+.btn-ghost{ color:var(--paper); }
+.btn-ghost:hover{ border-color:var(--brass-bright); color:var(--brass-bright); }
+
+/* --- the catalog drawer (signature element) --- */
+.drawer{
+  background:linear-gradient(180deg, var(--walnut-3), var(--walnut-2));
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:18px;
+  box-shadow:0 30px 60px -20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.drawer-head{
+  display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;
+  padding:0 4px;
+}
+.drawer-head .label{ font-family:var(--font-mono); font-size:0.7rem; letter-spacing:0.12em; color:var(--brass-bright); text-transform:uppercase; }
+.drawer-head .count{ font-family:var(--font-mono); font-size:0.7rem; color:rgba(236,227,207,0.45); }
+.query-input{
+  width:100%; padding:13px 14px; margin-bottom:14px;
+  background:var(--paper); color:var(--ink);
+  border:none; border-radius:5px; font-family:var(--font-mono); font-size:0.92rem;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.06);
+}
+.query-input::placeholder{ color:var(--ink-soft); opacity:0.6; }
+.card-stack{ display:flex; flex-direction:column; gap:8px; max-height:380px; overflow-y:auto; padding-right:2px;}
+.card-stack::-webkit-scrollbar{ width:6px; }
+.card-stack::-webkit-scrollbar-thumb{ background:rgba(231,189,128,0.25); border-radius:3px; }
+.idx-card{
+  background:var(--paper); color:var(--ink); border-radius:5px;
+  padding:11px 13px; display:flex; align-items:center; gap:12px;
+  transition:transform .35s ease, box-shadow .35s ease, opacity .35s ease;
+  border-left:4px solid var(--paper-2);
+  position:relative;
+}
+.idx-card.rank-0{ border-left-color:var(--rust); transform:translateX(6px) scale(1.015); box-shadow:0 10px 24px -10px rgba(0,0,0,0.5);}
+.idx-card .tab{
+  font-family:var(--font-mono); font-weight:600; font-size:0.78rem; white-space:nowrap;
+  color:var(--ink); min-width:108px;
+}
+.idx-card .snippet{ font-size:0.78rem; color:var(--ink-soft); flex:1; line-height:1.45; }
+.idx-card mark{ background:var(--brass-bright); color:var(--ink); padding:0 2px; border-radius:2px; }
+.idx-card .score{
+  font-family:var(--font-mono); font-size:0.68rem; color:var(--ink-soft); text-align:right; min-width:54px;
+}
+.idx-card .score b{ display:block; font-size:0.85rem; color:var(--rust); }
+.idx-card .scorebar{
+  position:absolute; left:0; bottom:0; height:3px; background:var(--brass);
+  border-radius:0 0 0 5px; transition:width .4s ease;
+}
+.hero-foot-note{ font-family:var(--font-mono); font-size:0.68rem; color:rgba(236,227,207,0.4); margin-top:10px; padding:0 4px;}
+
+/* ============================= SECTION SCAFFOLD ============================= */
+section{ padding:96px 0; border-top:1px solid var(--line); position:relative;}
+section:first-of-type{ border-top:none; }
+.section-head{ max-width:660px; margin-bottom:48px; }
+.section-head h2{ font-size:clamp(1.8rem,3vw,2.5rem); font-weight:600; }
+.section-head p{ font-size:1.02rem; margin-top:14px;}
+.reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+.reveal.in{ opacity:1; transform:translateY(0); }
+
+/* ===== optimizing-for chips ===== */
+.target-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
+.target-card{
+  background:var(--walnut-2); border:1px solid var(--line); border-radius:8px;
+  padding:22px 20px; position:relative; overflow:hidden;
+}
+.target-card .num{ font-family:var(--font-mono); color:var(--brass); font-size:0.78rem; }
+.target-card h4{ font-size:1.05rem; margin:10px 0 8px; font-weight:600; }
+.target-card p{ font-size:0.9rem; margin:0; }
+
+/* ===== pipeline ===== */
+.pipeline{
+  display:flex; gap:0; overflow-x:auto; padding:8px 0 18px;
+  scrollbar-width:thin;
+}
+.pipe-step{
+  flex:0 0 auto; min-width:168px; background:var(--walnut-2); border:1px solid var(--line);
+  border-radius:7px; padding:16px 16px 14px; margin-right:0;
+  position:relative;
+}
+.pipe-arrow{
+  flex:0 0 auto; width:40px; display:flex; align-items:center; justify-content:center;
+  color:var(--brass); font-size:1.1rem;
+}
+.pipe-step .stage{ font-family:var(--font-mono); font-size:0.65rem; color:var(--brass-bright); letter-spacing:0.08em; text-transform:uppercase;}
+.pipe-step .what{ font-family:var(--font-body); font-size:0.92rem; margin-top:6px; color:var(--paper); font-weight:500;}
+
+/* ===== file catalog grid ===== */
+.catalog{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
+.file-card{
+  background:var(--paper); color:var(--ink); border-radius:6px; padding:16px 16px 14px;
+  cursor:pointer; border-top:5px solid var(--brass);
+  transition:transform .2s ease, box-shadow .2s ease;
+  position:relative;
+}
+.file-card[data-cat="server"]{ border-top-color:var(--rust); }
+.file-card[data-cat="proto"]{ border-top-color:var(--sage); }
+.file-card:hover{ transform:translateY(-3px); box-shadow:0 16px 28px -14px rgba(0,0,0,0.55); }
+.file-card .fname{ font-family:var(--font-mono); font-weight:600; font-size:0.95rem; }
+.file-card .cat-tag{ font-family:var(--font-mono); font-size:0.62rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.07em; margin-top:2px; display:block;}
+.file-card .desc{ font-size:0.82rem; color:var(--ink-soft); margin-top:10px; max-height:0; overflow:hidden; transition:max-height .3s ease, margin-top .3s ease; line-height:1.5;}
+.file-card.open .desc{ max-height:200px; margin-top:10px; }
+.file-card .chev{ position:absolute; top:14px; right:14px; font-family:var(--font-mono); color:var(--ink-soft); font-size:0.8rem; transition:transform .25s ease;}
+.file-card.open .chev{ transform:rotate(45deg); }
+
+/* ===== BM25 sandbox ===== */
+.sandbox{
+  display:grid; grid-template-columns:1fr 1fr; gap:36px; align-items:start;
+}
+@media (max-width:900px){ .sandbox{grid-template-columns:1fr;} }
+.controls{ display:flex; flex-direction:column; gap:18px; }
+.control{ display:flex; flex-direction:column; gap:6px;}
+.control label{ font-family:var(--font-mono); font-size:0.74rem; color:var(--brass-bright); display:flex; justify-content:space-between;}
+.control input[type="range"]{ width:100%; accent-color:var(--brass); }
+.formula-box{
+  background:var(--walnut-2); border:1px solid var(--line); border-radius:8px; padding:22px;
+}
+.formula-box .ftitle{ font-family:var(--font-mono); font-size:0.72rem; color:var(--brass-bright); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px;}
+.formula-line{ font-family:var(--font-mono); font-size:0.92rem; color:var(--paper); margin:6px 0; word-break:break-word; }
+.formula-line .v{ color:var(--brass-bright); }
+.score-result{
+  margin-top:16px; padding-top:16px; border-top:1px solid var(--line);
+  display:flex; align-items:baseline; gap:10px;
+}
+.score-result .big{ font-family:var(--font-display); font-size:2.4rem; color:var(--rust); font-weight:600; }
+.score-bar-outer{ height:8px; background:rgba(255,255,255,0.06); border-radius:4px; margin-top:14px; overflow:hidden;}
+.score-bar-inner{ height:100%; background:linear-gradient(90deg,var(--brass),var(--rust)); border-radius:4px; transition:width .3s ease; width:0%;}
+
+/* ===== retrieval tabs ===== */
+.tabbar{ display:flex; gap:10px; margin-bottom:24px; }
+.tabbtn{
+  font-family:var(--font-mono); font-size:0.8rem; padding:10px 16px; border-radius:5px;
+  border:1px solid var(--line); background:transparent; color:rgba(236,227,207,0.6); cursor:pointer;
+  transition:all .2s ease;
+}
+.tabbtn.active{ background:var(--brass); color:var(--ink); border-color:var(--brass); font-weight:600;}
+.tabpanel{ display:none; }
+.tabpanel.active{ display:block; }
+.steps{ list-style:none; margin:0; padding:0; counter-reset:step; }
+.steps li{
+  counter-increment:step; position:relative; padding:14px 0 14px 44px; border-bottom:1px solid var(--line);
+}
+.steps li::before{
+  content:counter(step); position:absolute; left:0; top:13px; width:26px; height:26px; border-radius:50%;
+  background:var(--walnut-2); border:1px solid var(--brass); color:var(--brass-bright); font-family:var(--font-mono);
+  font-size:0.78rem; display:flex; align-items:center; justify-content:center;
+}
+.steps li:last-child{ border-bottom:none; }
+.steps li strong{ color:var(--paper); }
+.expr{
+  font-family:var(--font-mono); background:var(--walnut-2); border:1px solid var(--line); border-radius:6px;
+  padding:16px 18px; font-size:0.95rem; margin-top:18px; color:var(--brass-bright); overflow-x:auto;
+}
+
+/* ===== two-col compare (forward vs inverted) ===== */
+.compare{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media (max-width:760px){ .compare{grid-template-columns:1fr;} }
+.compare-card{ background:var(--walnut-2); border:1px solid var(--line); border-radius:8px; padding:22px;}
+.compare-card.bad{ opacity:0.7; }
+.compare-card h4{ font-size:1rem; margin-bottom:10px; }
+.compare-card .map{ font-family:var(--font-mono); font-size:0.78rem; line-height:1.8; color:rgba(236,227,207,0.75); white-space:pre-wrap; }
+
+/* ===== transports / sdk cards ===== */
+.transport-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; }
+.t-card{ background:var(--walnut-2); border:1px solid var(--line); border-radius:8px; padding:24px;}
+.t-card .icon-line{ font-family:var(--font-mono); font-size:0.7rem; color:var(--sage); letter-spacing:0.08em; text-transform:uppercase;}
+.t-card h4{ margin:10px 0 8px; font-size:1.15rem; }
+.t-card ul{ margin:12px 0 0; padding-left:18px; font-size:0.86rem; color:rgba(236,227,207,0.75);}
+.rpc-table{ width:100%; border-collapse:collapse; margin-top:30px; font-size:0.88rem;}
+.rpc-table th{ text-align:left; font-family:var(--font-mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--brass-bright); padding:10px 14px; border-bottom:1px solid var(--line);}
+.rpc-table td{ padding:12px 14px; border-bottom:1px solid var(--line); color:rgba(236,227,207,0.8);}
+.rpc-table td:first-child{ font-family:var(--font-mono); color:var(--paper); }
+.pill{ font-family:var(--font-mono); font-size:0.68rem; padding:2px 8px; border-radius:10px; background:rgba(231,189,128,0.15); color:var(--brass-bright);}
+
+/* ===== roadmap timeline ===== */
+.timeline{ position:relative; padding-left:28px; border-left:2px solid var(--line); }
+.phase{ margin-bottom:14px; }
+.phase-head{
+  display:flex; align-items:center; gap:12px; cursor:pointer; padding:14px 16px; background:var(--walnut-2);
+  border:1px solid var(--line); border-radius:7px; position:relative;
+}
+.phase-head::before{
+  content:''; position:absolute; left:-34px; top:50%; width:10px; height:10px; border-radius:50%;
+  background:var(--brass); transform:translateY(-50%); box-shadow:0 0 0 4px var(--walnut);
+}
+.phase.done .phase-head::before{ background:var(--sage); }
+.phase-head .ph-label{ font-family:var(--font-mono); font-size:0.68rem; color:var(--brass-bright); text-transform:uppercase; letter-spacing:0.08em; min-width:64px;}
+.phase-head h4{ flex:1; font-size:1.02rem; font-weight:600; }
+.phase-head .status{ font-family:var(--font-mono); font-size:0.68rem; padding:4px 9px; border-radius:10px; background:rgba(127,170,120,0.18); color:var(--sage);}
+.phase.partial .phase-head .status{ background:rgba(231,189,128,0.18); color:var(--brass-bright); }
+.phase-head .chev2{ font-family:var(--font-mono); color:var(--brass-bright); transition:transform .25s ease; }
+.phase.open .phase-head .chev2{ transform:rotate(90deg); }
+.phase-body{ max-height:0; overflow:hidden; transition:max-height .35s ease; padding-left:18px; }
+.phase.open .phase-body{ max-height:600px; }
+.phase-body ul{ list-style:none; margin:14px 0 6px; padding:0; }
+.phase-body li{ padding:8px 0 8px 28px; position:relative; font-size:0.88rem; color:rgba(236,227,207,0.78); border-bottom:1px solid rgba(231,189,128,0.08);}
+.phase-body li::before{ content:'✓'; position:absolute; left:0; color:var(--sage); font-weight:700; }
+.phase-body li.todo::before{ content:'○'; color:var(--brass-bright); }
+.phase-body li.todo{ color:rgba(236,227,207,0.55); }
+
+/* ===== footer ===== */
+footer{ padding:70px 0 50px; border-top:1px solid var(--line); }
+.footer-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:48px; }
+@media (max-width:800px){ .footer-grid{grid-template-columns:1fr;} }
+.readnext{ list-style:none; margin:0; padding:0; counter-reset:rn; }
+.readnext li{ counter-increment:rn; padding:10px 0; border-bottom:1px solid var(--line); font-size:0.92rem; display:flex; gap:12px;}
+.readnext li::before{ content:counter(rn); font-family:var(--font-mono); color:var(--brass); }
+.foot-note{ font-family:var(--font-mono); font-size:0.74rem; color:rgba(236,227,207,0.4); margin-top:30px; }
 </style>
 </head>
 <body>
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="brand" href="#top" aria-label="ZynSearch home">
-      <div class="brand-mark" aria-hidden="true"></div>
-      <div class="brand-text">
-        <strong>ZynSearch</strong>
-        <span>Fast search, elegant delivery</span>
-      </div>
-    </a>
-    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">Menu</button>
-    <nav class="nav" id="nav">
-      <a href="#engine">Engine</a>
+
+<header class="topnav">
+  <div class="nav-inner">
+    <a href="#top" class="brand"><span class="tag"></span>ZynSearch</a>
+    <nav class="links">
       <a href="#pipeline">Pipeline</a>
-      <a href="#api">API</a>
-      <a href="#demo">Demo</a>
-      <a href="#sdk">SDKs</a>
+      <a href="#engine">Engine</a>
+      <a href="#ranking">Ranking</a>
+      <a href="#retrieval">Retrieval</a>
+      <a href="#sharding">Sharding</a>
+      <a href="#transports">Transports</a>
+      <a href="#roadmap">Roadmap</a>
     </nav>
   </div>
 </header>
 
 <main id="top">
-  <div class="wrap">
-    <section class="hero">
-      <div class="hero-grid">
-        <div>
-          <div class="eyebrow reveal"><i></i> Rust-powered search infrastructure</div>
-          <h1 class="reveal"><span class="gradient-text">Speed, elegance, and reliability</span> for modern search.</h1>
-          <p class="lede reveal">
-            ZynSearch is a secure, SDK-ready search platform built for teams that want something sharper than a demo:
-            a Rust core, a polished HTTP REST API, gRPC support, and a path to production that feels deliberate.
-          </p>
-          <div class="hero-actions reveal">
-            <a class="btn btn-primary" href="#demo">Explore the API</a>
-            <a class="btn btn-secondary" href="#pipeline">See the engine</a>
-          </div>
-          <div class="chip-row reveal" aria-label="Highlights">
-            <span class="chip">HTTP + TLS</span>
-            <span class="chip">Basic Auth</span>
-            <span class="chip">gRPC contract</span>
-            <span class="chip">Rust core</span>
-            <span class="chip">SDK-friendly JSON</span>
-          </div>
-          <div class="stats reveal">
-            <div class="stat">
-              <strong>3</strong>
-              <span>Primary endpoints in the REST surface</span>
-            </div>
-            <div class="stat">
-              <strong>2</strong>
-              <span>Secure layers: TLS and authentication</span>
-            </div>
-            <div class="stat">
-              <strong>1</strong>
-              <span>Unified engine powering every transport</span>
-            </div>
-            <div class="stat">
-              <strong>24/7</strong>
-              <span>Ways to embed, serve, and integrate</span>
-            </div>
-          </div>
-        </div>
-        <aside class="status-panel reveal">
-          <div class="panel-head">
-            <div class="panel-title">Live system view</div>
-            <div class="lights" aria-hidden="true">
-              <span class="light"></span><span class="light"></span><span class="light"></span>
-            </div>
-          </div>
-          <div class="terminal" id="terminal">
-            <div class="terminal-line" style="animation-delay: 120ms"><span class="prompt">$</span> boot zynsearch --protocol <span class="kw">http</span></div>
-            <div class="terminal-line" style="animation-delay: 420ms"><span class="muted">-</span> HTTP router online</div>
-            <div class="terminal-line" style="animation-delay: 720ms"><span class="muted">-</span> Basic Auth enabled</div>
-            <div class="terminal-line" style="animation-delay: 1020ms"><span class="muted">-</span> TLS ready for production traffic</div>
-            <div class="terminal-line" style="animation-delay: 1320ms"><span class="muted">-</span> Query pipeline: analyzer -> index -> scorer</div>
-            <div class="terminal-line" style="animation-delay: 1620ms"><span class="ok">OK</span> ZynSearch is serving with a calm, fast heartbeat.</div>
-          </div>
-        </aside>
-      </div>
-    </section>
 
-    <section id="engine" class="reveal">
-      <div class="section-kicker">Engine</div>
-      <h2 class="section-title">Built like a product, not a prototype.</h2>
-      <p class="section-copy">
-        ZynSearch is deliberately split into clear layers so the core remains embeddable while the server and SDKs
-        stay thin, secure, and easy to reason about.
-      </p>
-      <div class="grid-3">
-        <article class="card">
-          <div class="icon one">FAST</div>
-          <h3>Fast indexing and retrieval</h3>
-          <p>Documents move through analysis and into the inverted index with a direct, cache-friendly flow.</p>
-        </article>
-        <article class="card">
-          <div class="icon two">LOCK</div>
-          <h3>Secure by default posture</h3>
-          <p>HTTP auth plus TLS gives SDK users a straightforward, standard connection pattern.</p>
-        </article>
-        <article class="card">
-          <div class="icon three">FLOW</div>
-          <h3>Clear transport boundaries</h3>
-          <p>REST for easy consumption, gRPC for typed integrations, core for embedding.</p>
-        </article>
+<!-- ============================= HERO ============================= -->
+<section class="hero" style="padding-top:168px;">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Rust search platform</div>
+      <h1>A search engine built to be <em>read</em>, not just run.</h1>
+      <p class="lede">ZynSearch is a layered Rust search platform: an embeddable core, a typed gRPC service, a secure REST gateway, and thin SDKs — all windows onto the same inverted index and the same BM25 math. Try the drawer on the right: it's running real scoring math, live, on ZynSearch's own source files.</p>
+      <div class="cta-row">
+        <a href="#pipeline" class="btn btn-primary">See the pipeline →</a>
+        <a href="#ranking" class="btn btn-ghost">Play with BM25</a>
       </div>
-    </section>
-
-    <section id="pipeline" class="reveal">
-      <div class="section-kicker">Pipeline</div>
-      <h2 class="section-title">A search flow you can actually picture.</h2>
-      <p class="section-copy">
-        From query text to ranked results, the system keeps each step visible and understandable. That makes it easier to
-        ship, debug, and extend.
-      </p>
-      <div class="pipeline">
-        <div class="flow">
-          <div class="flow-step">
-            <div class="step-num">01</div>
-            <div>
-              <strong>Analyze</strong>
-              <p>Normalize incoming content into a stable token stream with the core analyzer.</p>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="step-num">02</div>
-            <div>
-              <strong>Index</strong>
-              <p>Store document terms in the inverted index and preserve document identity for later lookup.</p>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="step-num">03</div>
-            <div>
-              <strong>Score</strong>
-              <p>Rank query matches so the best results rise quickly and consistently.</p>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="step-num">04</div>
-            <div>
-              <strong>Serve</strong>
-              <p>Deliver the same capability through HTTP, gRPC, or embedding without duplicating the engine.</p>
-            </div>
-          </div>
-        </div>
-        <div class="diagram">
-          <svg viewBox="0 0 720 420" role="img" aria-label="ZynSearch architecture diagram">
-            <defs>
-              <linearGradient id="g1" x1="0" x2="1">
-                <stop offset="0%" stop-color="#52c7ff"/>
-                <stop offset="100%" stop-color="#b58cff"/>
-              </linearGradient>
-              <linearGradient id="g2" x1="0" x2="1">
-                <stop offset="0%" stop-color="#4ef2b0"/>
-                <stop offset="100%" stop-color="#7af7ff"/>
-              </linearGradient>
-            </defs>
-            <rect x="24" y="24" width="672" height="372" rx="28" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)"/>
-            <rect x="60" y="78" width="150" height="76" rx="18" fill="rgba(82,199,255,0.08)" stroke="rgba(82,199,255,0.35)"/>
-            <rect x="60" y="254" width="150" height="76" rx="18" fill="rgba(181,140,255,0.08)" stroke="rgba(181,140,255,0.35)"/>
-            <rect x="285" y="90" width="160" height="96" rx="18" fill="rgba(78,242,176,0.08)" stroke="rgba(78,242,176,0.35)"/>
-            <rect x="285" y="236" width="160" height="96" rx="18" fill="rgba(255,207,111,0.08)" stroke="rgba(255,207,111,0.35)"/>
-            <rect x="518" y="128" width="144" height="162" rx="18" fill="rgba(122,247,255,0.07)" stroke="rgba(122,247,255,0.35)"/>
-            <text x="135" y="123" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Documents</text>
-            <text x="135" y="299" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">SDKs</text>
-            <text x="365" y="140" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Core Engine</text>
-            <text x="365" y="288" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Search API</text>
-            <text x="590" y="208" text-anchor="middle" fill="#ecf2ff" font-family="var(--sans)" font-size="20" font-weight="700">Clients</text>
-            <line x1="210" y1="116" x2="285" y2="136" stroke="url(#g1)" stroke-width="4" stroke-linecap="round"/>
-            <line x1="210" y1="292" x2="285" y2="284" stroke="url(#g1)" stroke-width="4" stroke-linecap="round"/>
-            <line x1="445" y1="142" x2="518" y2="208" stroke="url(#g2)" stroke-width="4" stroke-linecap="round"/>
-            <line x1="445" y1="284" x2="518" y2="208" stroke="url(#g2)" stroke-width="4" stroke-linecap="round"/>
-            <circle cx="285" cy="136" r="6" fill="#52c7ff"/>
-            <circle cx="285" cy="284" r="6" fill="#b58cff"/>
-            <circle cx="518" cy="208" r="6" fill="#7af7ff"/>
-          </svg>
-          <div class="band">
-            <span class="pill">Rust core</span>
-            <span class="pill">Axum REST</span>
-            <span class="pill">Tonic gRPC</span>
-            <span class="pill">SDK-ready JSON</span>
-          </div>
-        </div>
+    </div>
+    <div class="drawer">
+      <div class="drawer-head">
+        <span class="label">Catalog drawer — live index</span>
+        <span class="count" id="cardCount">10 entries</span>
       </div>
-    </section>
-
-    <section id="api" class="reveal">
-      <div class="section-kicker">API</div>
-      <h2 class="section-title">A clean contract for real integrations.</h2>
-      <p class="section-copy">
-        The HTTP surface is intentionally small. That makes it easier for SDKs to stay thin, error handling to stay
-        consistent, and your deployment story to stay dependable.
-      </p>
-      <div class="api-panel">
-        <div class="api-list">
-          <div class="api-item">
-            <div>
-              <strong>POST /index</strong>
-              <span>Insert or replace documents with JSON bodies that are easy for SDKs to marshal.</span>
-            </div>
-            <span class="verb v-post">POST</span>
-          </div>
-          <div class="api-item">
-            <div>
-              <strong>GET /search</strong>
-              <span>Fetch ranked results using query parameters that fit browser, CLI, and SDK use.</span>
-            </div>
-            <span class="verb v-get">GET</span>
-          </div>
-          <div class="api-item">
-            <div>
-              <strong>DELETE /index/:id</strong>
-              <span>Remove a document by numeric ID or source key without complicating the client layer.</span>
-            </div>
-            <span class="verb v-del">DELETE</span>
-          </div>
-        </div>
-        <div class="code-panel">
-          <div class="code-tabbar">
-            <button class="code-tab active" data-lang="http">HTTP</button>
-            <button class="code-tab" data-lang="json">JSON</button>
-            <button class="code-tab" data-lang="error">Error</button>
-          </div>
-          <pre id="codeSample">curl -u username:password https://localhost:7777/search?q=rust+search&amp;limit=5</pre>
-        </div>
-      </div>
-    </section>
-
-    <section id="demo" class="reveal">
-      <div class="section-kicker">Demo</div>
-      <h2 class="section-title">Try the product story in the browser.</h2>
-      <p class="section-copy">
-        This sandbox simulates how a client talks to ZynSearch. It is not a backend, but it shows the shape of the
-        requests and the kind of calm, structured response model the SDKs consume.
-      </p>
-      <div class="demo">
-        <div class="demo-grid">
-          <form class="demo-form" id="demoForm">
-            <label for="endpoint">Endpoint</label>
-            <input id="endpoint" value="https://search.example.com" />
-            <label for="query">Query</label>
-            <input id="query" value="rust search engine" />
-            <label for="content">Document content</label>
-            <textarea id="content">ZynSearch is a fast Rust search engine with a secure HTTP API and SDK-ready design.</textarea>
-            <label for="mode">Action</label>
-            <select id="mode">
-              <option value="search">Search</option>
-              <option value="index">Index</option>
-              <option value="delete">Delete</option>
-            </select>
-            <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Run simulation</button>
-          </form>
-          <div class="result" id="result">
-{ "status": "ready", "message": "Fill in the form and run the simulation." }</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="sdk" class="reveal">
-      <div class="section-kicker">SDKs</div>
-      <h2 class="section-title">One backend, many languages.</h2>
-      <p class="section-copy">
-        The design goal is simple: every SDK should feel native in its own ecosystem while talking to the same secure,
-        well-defined API surface underneath.
-      </p>
-      <div class="grid-3">
-        <article class="card">
-          <div class="icon one">JS</div>
-          <h3>JavaScript / TypeScript</h3>
-          <p>Async-first clients for Node.js and modern TypeScript services.</p>
-        </article>
-        <article class="card">
-          <div class="icon two">Py</div>
-          <h3>Python</h3>
-          <p>Sync and async wrappers for scripts, notebooks, and production workflows.</p>
-        </article>
-        <article class="card">
-          <div class="icon four">Go</div>
-          <h3>Go</h3>
-          <p>Small, direct clients for backend services and internal infrastructure.</p>
-        </article>
-      </div>
-    </section>
-
-    <footer class="footer">
-      ZynSearch is shaped to feel fast in motion, calm in operation, and reliable in the long run.
-    </footer>
+      <input id="heroQuery" class="query-input" type="text" placeholder="search the engine's own files… try “ranking” or “shard”" autocomplete="off">
+      <div class="card-stack" id="cardStack"></div>
+      <div class="hero-foot-note">Scored with real BM25 (k1=1.5, b=0.75) over the ten source files described below — not a canned animation.</div>
+    </div>
   </div>
+</section>
+
+<!-- ============================= OPTIMIZING FOR ============================= -->
+<section id="optimizing">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Design intent</div>
+      <h2>What it's optimizing for</h2>
+      <p>ZynSearch isn't trying to be a generic search demo. Search systems tend to become opaque fast — ZynSearch goes the other way, keeping the internal logic legible enough to audit, extend, and trust.</p>
+    </div>
+    <div class="target-grid reveal">
+      <div class="target-card"><span class="num">01</span><h4>Fast enough to feel responsive</h4><p>Hash-driven postings lookups and bounded top-K collection avoid doing more work than the query needs.</p></div>
+      <div class="target-card"><span class="num">02</span><h4>Clear enough to reason about</h4><p>Every transformation — tokens, postings, scores — stays inspectable rather than buried in opaque handlers.</p></div>
+      <div class="target-card"><span class="num">03</span><h4>Secure enough to serve SDKs</h4><p>Basic Auth, optional TLS, and structured JSON errors at the server boundary, not bolted on later.</p></div>
+      <div class="target-card"><span class="num">04</span><h4>Modular enough to embed or deploy</h4><p>The same core crate runs headless inside a Rust binary or behind a full HTTP/gRPC server.</p></div>
+      <div class="target-card"><span class="num">05</span><h4>Explicit about its own math</h4><p>BM25's IDF and TF terms are visible, named, and tunable — never an unexplained black box.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= PIPELINE ============================= -->
+<section id="pipeline">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">The big picture</div>
+      <h2>One engine, four doors in</h2>
+      <p>The REST API, gRPC service, CLI, and SDKs are different windows onto the same search brain. Every document and every query passes through this same shape.</p>
+    </div>
+    <div class="pipeline reveal" id="pipelineTrack"></div>
+  </div>
+</section>
+
+<!-- ============================= ENGINE / FILE MAP ============================= -->
+<section id="engine">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Core engine philosophy</div>
+      <h2>Four rules, then a file for each job</h2>
+      <p>The core lives in <code>crates/zynsearch-core</code> and is built around keeping ingestion deterministic, search execution explainable, ranking math explicit, and transport concerns entirely out of the engine. That discipline is what lets the project behave like a product instead of a pile of handlers. Tap a card to open it.</p>
+    </div>
+    <div class="catalog reveal" id="fileCatalog"></div>
+  </div>
+</section>
+
+<!-- ============================= RANKING / BM25 SANDBOX ============================= -->
+<section id="ranking">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">How the search math works</div>
+      <h2>BM25, with the dials exposed</h2>
+      <p>Rare terms should matter more than common ones. Repetition should help, but with diminishing returns. Long documents shouldn't win just by being long. BM25 encodes all three intuitions in one formula — move the sliders to feel each one.</p>
+    </div>
+    <div class="sandbox reveal">
+      <div class="controls">
+        <div class="control"><label>Term frequency in doc — f <span id="lblF">3</span></label><input type="range" id="rngF" min="0" max="20" value="3"></div>
+        <div class="control"><label>Document length — |d| <span id="lblDL">120</span></label><input type="range" id="rngDL" min="5" max="400" value="120"></div>
+        <div class="control"><label>Average doc length — avgdl <span id="lblAVG">140</span></label><input type="range" id="rngAVG" min="5" max="400" value="140"></div>
+        <div class="control"><label>Corpus size — N <span id="lblN">500</span></label><input type="range" id="rngN" min="2" max="5000" value="500"></div>
+        <div class="control"><label>Docs containing term — n_t <span id="lblNT">40</span></label><input type="range" id="rngNT" min="1" max="5000" value="40"></div>
+        <div class="control"><label>Saturation — k1 <span id="lblK1">1.50</span></label><input type="range" id="rngK1" min="0" max="3" step="0.05" value="1.5"></div>
+        <div class="control"><label>Length normalization — b <span id="lblB">0.75</span></label><input type="range" id="rngB" min="0" max="1" step="0.05" value="0.75"></div>
+      </div>
+      <div class="formula-box">
+        <div class="ftitle">Live computation</div>
+        <div class="formula-line">IDF(t) = ln(1 + (N − n_t + 0.5) / (n_t + 0.5)) = <span class="v" id="outIDF">—</span></div>
+        <div class="formula-line">TF(t,d) = (f·(k1+1)) / (f + k1·(1−b+b·|d|/avgdl)) = <span class="v" id="outTF">—</span></div>
+        <div class="formula-line">score(t,d) = IDF(t) · TF(t,d)</div>
+        <div class="score-result">
+          <span class="big" id="outScore">0.00</span>
+          <span style="color:rgba(236,227,207,0.55); font-family:var(--font-mono); font-size:0.78rem;">contribution from this term</span>
+        </div>
+        <div class="score-bar-outer"><div class="score-bar-inner" id="scoreBar"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= RETRIEVAL ============================= -->
+<section id="retrieval">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Retrieval logic</div>
+      <h2>Two ways to ask "does it match?"</h2>
+      <p>The retrieval pipeline runs in two modes from the same index: a cheap boolean intersection, and a more expressive scored ranking.</p>
+    </div>
+    <div class="reveal">
+      <div class="tabbar">
+        <button class="tabbtn active" data-tab="bool">Boolean intersection</button>
+        <button class="tabbtn" data-tab="scored">Scored retrieval</button>
+      </div>
+      <div class="tabpanel active" id="panel-bool">
+        <ul class="steps">
+          <li><strong>Analyze</strong> the query into tokens, the same way documents were tokenized.</li>
+          <li><strong>Look up</strong> each token in the inverted index.</li>
+          <li><strong>Build</strong> a candidate document-ID set per token.</li>
+          <li><strong>Intersect</strong> the sets — if any term is missing, the result is empty immediately.</li>
+          <li><strong>Map</strong> surviving document IDs back to their source paths.</li>
+        </ul>
+        <div class="expr">matches(query) = documents(term₁) ∩ documents(term₂) ∩ … ∩ documents(termₙ)</div>
+      </div>
+      <div class="tabpanel" id="panel-scored">
+        <ul class="steps">
+          <li><strong>Analyze</strong> the query into tokens.</li>
+          <li><strong>Collect</strong> candidate postings for each token.</li>
+          <li><strong>Compute IDF</strong> per term across the corpus.</li>
+          <li><strong>Compute BM25</strong> contributions per posting.</li>
+          <li><strong>Sum</strong> scores per document, then sort the top candidates.</li>
+        </ul>
+        <div class="expr">score(d,q) = Σ score(t,d) for t in q — "how strongly does it match," not just "does it match."</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= SHARDING ============================= -->
+<section id="sharding">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Sharding &amp; coordination</div>
+      <h2>Split the work, merge the answers</h2>
+      <p>Each document is deterministically assigned to one shard — in the current implementation, by document ID modulo shard count — so the same routing rule can revisit it during search. <code>query_pipeline.rs</code> and <code>searcher.rs</code> coordinate the rest:</p>
+    </div>
+    <div class="target-grid reveal">
+      <div class="target-card"><span class="num">→</span><h4>Parallelizable</h4><p>Each shard searches independently, so work scales with partitions, not with corpus size alone.</p></div>
+      <div class="target-card"><span class="num">→</span><h4>No single bottleneck</h4><p>The coordinator merges results rather than doing all the matching itself.</p></div>
+      <div class="target-card"><span class="num">→</span><h4>Horizontally scalable later</h4><p>The deterministic routing rule makes it straightforward to add capacity without re-architecting.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= WHY INVERTED INDEX ============================= -->
+<section id="why-inverted">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Index shape</div>
+      <h2>Why the inverted index is the right shape</h2>
+      <p>Search engines don't scan every document — that's too slow. They flip the relationship: instead of asking what terms live in a document, they ask what documents contain a term.</p>
+    </div>
+    <div class="compare reveal">
+      <div class="compare-card bad">
+        <h4>Forward index — wrong question</h4>
+        <p style="font-size:0.85rem;">Answers: "what terms are in this document?"</p>
+        <div class="map">doc_42 → [rust, async, index, shard, http]
+doc_43 → [token, stem, parser, http]
+doc_44 → [grpc, proto, stream, http]</div>
+      </div>
+      <div class="compare-card">
+        <h4>Inverted index — right question</h4>
+        <p style="font-size:0.85rem;">Answers: "what documents contain this term?"</p>
+        <div class="map">http   → [doc_42, doc_43, doc_44]
+shard  → [doc_42]
+proto  → [doc_44]
+token  → [doc_43]</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= COMPLEXITY ============================= -->
+<section id="complexity">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Complexity intuition</div>
+      <h2>Doing the least work necessary</h2>
+    </div>
+    <div class="target-grid reveal">
+      <div class="target-card"><h4>Tokenization</h4><p>Linear in input size.</p></div>
+      <div class="target-card"><h4>Postings lookup</h4><p>Hash-map driven — effectively constant time per term.</p></div>
+      <div class="target-card"><h4>Boolean intersection</h4><p>Depends on the size of the posting lists involved.</p></div>
+      <div class="target-card"><h4>BM25 ranking</h4><p>Proportional to the number of candidate postings actually inspected.</p></div>
+      <div class="target-card"><h4>Top-K collection</h4><p>A bounded heap avoids a full sort of every match.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= TRANSPORTS ============================= -->
+<section id="transports">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Server &amp; APIs</div>
+      <h2>Same engine, different doors</h2>
+      <p>The REST layer and the gRPC contract expose the same product idea through different doors — REST for SDKs and simple integrations, gRPC for typed, higher-throughput machine-to-machine traffic.</p>
+    </div>
+    <div class="transport-grid reveal">
+      <div class="t-card">
+        <div class="icon-line">crates/zynsearch-server/src/http.rs</div>
+        <h4>REST gateway</h4>
+        <p>Translates HTTP requests into engine actions and engine actions back into JSON.</p>
+        <ul><li>Basic Auth</li><li>Optional TLS</li><li>Structured error responses</li><li>SDK-friendly request/response shapes</li></ul>
+      </div>
+      <div class="t-card">
+        <div class="icon-line">proto/zynsearch/v1/zynsearch.proto</div>
+        <h4>gRPC contract</h4>
+        <p>The source of truth for typed clients across languages — generated with standard protoc tooling or Buf.</p>
+        <ul><li>Strong typing</li><li>Cross-language compatibility</li><li>Clean SDK-generation surface</li></ul>
+      </div>
+      <div class="t-card">
+        <div class="icon-line">crates/zynsearch-server/src/main.rs</div>
+        <h4>Transport selection</h4>
+        <p>Boots whichever transport the operator chose — HTTP, gRPC, TCP, or both — and hydrates the engine on startup.</p>
+        <ul><li><code>--protocol http</code></li><li><code>--protocol grpc</code></li><li><code>--protocol both</code></li></ul>
+      </div>
+    </div>
+    <table class="rpc-table">
+      <thead><tr><th>RPC</th><th>Style</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>Index</td><td><span class="pill">unary</span></td><td>Index one document</td></tr>
+        <tr><td>Search</td><td><span class="pill">unary</span></td><td>Retrieve ranked results</td></tr>
+        <tr><td>Delete</td><td><span class="pill">unary</span></td><td>Remove a document</td></tr>
+        <tr><td>BulkIndex</td><td><span class="pill">client streaming</span></td><td>Push many documents over one connection</td></tr>
+        <tr><td>SearchStream</td><td><span class="pill">server streaming</span></td><td>Receive results as they're scored</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================= SDKs ============================= -->
+<section id="sdks">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">SDK surfaces</div>
+      <h2>The same three verbs, in three languages</h2>
+      <p>Each SDK exists to make the same backend feel native — and stays deliberately thin, because the intelligence belongs in the core and the transport layer, not in client wrappers.</p>
+    </div>
+    <div class="transport-grid reveal">
+      <div class="t-card">
+        <div class="icon-line">sdks/zynsearch-js</div>
+        <h4>JavaScript &amp; TypeScript</h4>
+        <p>Async-first, camelCase methods, JSON-native request and response handling.</p>
+        <ul><li><code>index()</code> · <code>search()</code> · <code>delete()</code></li><li>Best fit: Node.js services, serverless, TS app layers</li></ul>
+      </div>
+      <div class="t-card">
+        <div class="icon-line">sdks/zynsearch-py</div>
+        <h4>Python</h4>
+        <p>Synchronous and asynchronous client entry points with minimal ceremony.</p>
+        <ul><li><code>index()</code> · <code>search()</code> · <code>delete()</code></li><li>Best fit: automation jobs, data pipelines, notebooks</li></ul>
+      </div>
+      <div class="t-card">
+        <div class="icon-line">sdks/zynsearch-go</div>
+        <h4>Go</h4>
+        <p>A small, direct API that feels like a familiar HTTP wrapper, not a framework.</p>
+        <ul><li><code>Index</code> · <code>Search</code> · <code>Delete</code></li><li>Best fit: microservices, background workers, API adapters</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= SECURITY ============================= -->
+<section id="security">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Security &amp; delivery</div>
+      <h2>The recommended production stack</h2>
+    </div>
+    <div class="steps reveal" style="max-width:640px;">
+      <ul class="steps" style="list-style:none;">
+        <li><strong>HTTPS</strong> with certificates.</li>
+        <li><strong>Basic Auth</strong> for request identity.</li>
+        <li><strong>REST or gRPC</strong>, chosen by integration style.</li>
+        <li><strong>SDKs that talk to the server</strong>, never to the core directly.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= ROADMAP ============================= -->
+<section id="roadmap">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Build history</div>
+      <h2>Six phases, in order</h2>
+      <p>Unlike the file map above, this really is a sequence — each phase depends on the storage and indexing work that came before it. Tap a phase to open it.</p>
+    </div>
+    <div class="timeline reveal" id="roadmapTrack"></div>
+  </div>
+</section>
+
 </main>
 
+<footer>
+  <div class="wrap footer-grid">
+    <div>
+      <h3 style="font-size:1.3rem; margin-bottom:18px;">Where to go next</h3>
+      <ul class="readnext">
+        <li>crates/zynsearch-core — read the engine heart first</li>
+        <li>crates/zynsearch-server/src/http.rs — see the REST gateway</li>
+        <li>proto/zynsearch/v1/zynsearch.proto — the gRPC contract</li>
+        <li>sdks/zynsearch-js — JavaScript &amp; TypeScript client</li>
+        <li>sdks/zynsearch-py — Python client</li>
+        <li>sdks/zynsearch-go — Go client</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="font-size:1.3rem; margin-bottom:18px;">Why the separation matters</h3>
+      <p>The engine can be reused without networking. The server can evolve without touching scoring math. SDKs can stay idiomatic without duplicating engine logic. The repository stays explainable as it grows — that separation is a major part of the project's identity.</p>
+    </div>
+  </div>
+  <div class="wrap foot-note">ZynSearch — core, server, and SDKs, kept honest about how they fit together.</div>
+</footer>
+
 <script>
-  const reveals = document.querySelectorAll('.reveal, .hero .reveal, .terminal-line');
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible', 'vis');
-        observer.unobserve(entry.target);
-      }
+/* ============================= DATA ============================= */
+const docs = [
+  {id:'engine.rs', cat:'core', title:'crates/zynsearch-core/src/engine.rs',
+    text:'orchestration layer document ingestion search execution shard aware execution paths deletion cleanup logic corpus directory ingestion lifecycle of a document from arrival to removal',
+    desc:'The orchestration layer for the engine. Owns document ingestion, search execution against the in-memory index, shard-aware execution paths, deletion and cleanup logic, and corpus directory ingestion. The first stop for understanding a document\'s lifecycle from arrival to removal.'},
+  {id:'index.rs', cat:'core', title:'crates/zynsearch-core/src/index.rs',
+    text:'inverted index document registry terms postings document ids source paths metadata source kinds term to document map instead of scanning every document the engine jumps to term buckets',
+    desc:'The inverted index and document registry: the relationship between terms and postings, document IDs and source paths, metadata and source kinds. Conceptually a term-to-document map — the engine jumps straight to relevant term buckets instead of scanning every document.'},
+  {id:'analyzer.rs', cat:'core', title:'crates/zynsearch-core/src/analyzer.rs',
+    text:'text normalization token generation lowercasing splitting punctuation whitespace filtering stop words applying lightweight stemming rules recall precision ranking stability same word',
+    desc:'Text normalization and token generation — raw text to normalized token sequence. Lowercasing, splitting on punctuation and whitespace, stop-word filtering, light stemming. Decides what "same word" means inside the engine, with a direct impact on recall, precision, and ranking stability.'},
+  {id:'searcher.rs', cat:'core', title:'crates/zynsearch-core/src/searcher.rs',
+    text:'search execution ranking entry point boolean style intersection search scored retrieval bm25 main consumer of the inverted index and the analyzer',
+    desc:'Search execution and ranking entry point. Performs boolean-style intersection search and scored retrieval using BM25 — the main consumer of the inverted index and the analyzer.'},
+  {id:'bm25.rs', cat:'core', title:'crates/zynsearch-core/src/bm25.rs',
+    text:'ranking math probabilistic intuition rare terms matter more repeated occurrences diminishing returns long documents should not win idf tf saturation length normalization stable explainable',
+    desc:'The ranking math: rare terms matter more than common ones, repeated occurrences help with diminishing returns, and long documents don\'t win simply by being long. Encodes IDF and TF into a stable, explainable ranking model.'},
+  {id:'query_pipeline.rs', cat:'core', title:'crates/zynsearch-core/src/query_pipeline.rs',
+    text:'query coordination layer parsing incoming query payloads distributing search across shards merging formatting results output representations best documents across shards consistent response',
+    desc:'The query coordination layer: parses incoming query payloads, distributes search across shards, merges and formats results, and selects output representations. Where search becomes "find the best documents, across shards, in one consistent response."'},
+  {id:'top_k.rs', cat:'core', title:'crates/zynsearch-core/src/top_k.rs',
+    text:'result capping priority handling bounded heap highest scoring results efficient result selection strategy insert candidates retain strongest sort final small set asymptotic',
+    desc:'Result capping and priority handling. The TopKCollector keeps the highest-scoring results in a bounded heap so the engine preserves winners without doing unnecessary global work — a better asymptotic shape than sorting the full universe of matches.'},
+  {id:'storage.rs', cat:'core', title:'crates/zynsearch-core/src/storage.rs',
+    text:'persistence restoration bridge volatile memory durable state serializes index restart without losing corpus document registry postings metadata restore search state quickly',
+    desc:'Persistence and restoration — the bridge between volatile memory and durable state. Serializes the index so the engine can restart without losing the current corpus, preserving the document registry, postings, and metadata.'},
+  {id:'http.rs', cat:'server', title:'crates/zynsearch-server/src/http.rs',
+    text:'rest gateway translates http requests engine actions json basic auth optional tls structured error responses sdk friendly request response shapes',
+    desc:'The REST gateway. Translates HTTP requests into engine actions and engine actions back into JSON, while enforcing Basic Auth, optional TLS, structured error responses, and SDK-friendly request/response shapes.'},
+  {id:'zynsearch.proto', cat:'proto', title:'proto/zynsearch/v1/zynsearch.proto',
+    text:'grpc service contract index search delete bulkindex client streaming searchstream server streaming strongly typed request response messages canonical source of truth',
+    desc:'The canonical gRPC contract for ZynSearch — the source of truth for typed clients across languages, defining Index, Search, Delete, BulkIndex (client streaming), and SearchStream (server streaming) RPCs.'}
+];
+
+const pipelineStages = [
+  ['Input','document input'],['Normalize','parsing & normalization'],['Tokenize','tokens & stop-words'],
+  ['Index','inverted index insertion'],['Analyze','query token analysis'],['Intersect','shard coordination'],
+  ['Score','BM25 & top-K ranking'],['Serve','HTTP or gRPC transport']
+];
+
+const roadmap = [
+  {tag:'Phase 1', title:'Storage Layer & Bit-Packed Compression', done:true, items:[
+    'Delta encoding (d-gaps) for document ID storage',
+    'Frame-of-reference (FOR) block encoder',
+    'Roaring Bitmaps for dense posting lists',
+    'Variable-byte (VByte) layout for small integers']},
+  {tag:'Phase 2', title:'Lucene-Style Segment Architecture', done:true, items:[
+    'Write-ahead log (WAL) for persistence guarantees',
+    'In-memory MemTable buffer',
+    'Immutable segment writer',
+    'Multi-segment reader with a work-stealing pool (rayon)',
+    'Tiered segment merge policy']},
+  {tag:'Phase 3', title:'Logarithmic Query Traversal', done:true, items:[
+    'FST-compiled vocabulary dictionary',
+    'Skip lists embedded in postings blocks',
+    'Block-Max WAND algorithm',
+    'Boolean operators — MUST / SHOULD / MUST_NOT']},
+  {tag:'Phase 4', title:'Relevance Engine & Ranking Mechanics', done:true, items:[
+    'In-memory collection statistics',
+    'Native BM25 scorer module',
+    'Bounded min-heaps for top-K',
+    'Positional indexing for phrase queries']},
+  {tag:'Phase 5', title:'Network Protocols & Cluster Sharding', done:true, items:[
+    'Length-prefixed binary wire framing',
+    'Multi-protocol socket API (text / JSON / binary)',
+    'Data partitioning by hashed source ID',
+    'Scatter-gather query coordinator']},
+  {tag:'Phase 6', title:'Plug-and-Play Distribution Layer', done:false, partial:true, items:[
+    'Cargo workspace restructure — core / server / cli',
+    'zynsearch-core independently publishable to crates.io',
+    '.proto contract — Index / Search / Delete / BulkIndex / SearchStream',
+    'gRPC server via tonic',
+    'HTTP server via axum — POST /index, GET /search, DELETE /index/:id',
+    '--protocol http / grpc / both startup flags',
+    {t:'JavaScript/TypeScript SDK (zynsearch-js)', todo:true},
+    {t:'Python SDK (zynsearch-py), sync + async, PyPI-ready', todo:true},
+    {t:'Go SDK (zynsearch-go), importable module', todo:true},
+    {t:'Consistent error/timeout handling across all SDKs', todo:true}]}
+];
+
+/* ============================= BM25 ENGINE ============================= */
+function tokenize(s){ return (s.toLowerCase().match(/[a-z0-9]+/g) || []); }
+function avgDocLen(corpus){ return corpus.reduce((a,d)=>a+tokenize(d.text).length,0)/corpus.length; }
+function docFreq(term, corpus){ return corpus.filter(d=>tokenize(d.text).includes(term)).length; }
+function bm25For(doc, terms, corpus, k1, b){
+  const tokens = tokenize(doc.text);
+  const dl = tokens.length;
+  const avgdl = avgDocLen(corpus);
+  const N = corpus.length;
+  let total = 0;
+  terms.forEach(t=>{
+    const n_t = docFreq(t, corpus);
+    if(!n_t) return;
+    const f = tokens.filter(x=>x===t).length;
+    if(!f) return;
+    const idf = Math.log(1 + (N - n_t + 0.5)/(n_t + 0.5));
+    const tf = (f*(k1+1))/(f + k1*(1-b+b*dl/avgdl));
+    total += idf*tf;
+  });
+  return total;
+}
+
+/* ============================= HERO DRAWER ============================= */
+const stack = document.getElementById('cardStack');
+const heroQuery = document.getElementById('heroQuery');
+const cardCount = document.getElementById('cardCount');
+
+function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function highlight(text, terms){
+  if(!terms.length) return escapeHtml(text.slice(0,120))+'…';
+  let snippet = text;
+  const words = snippet.split(' ');
+  let idx = words.findIndex(w=>terms.some(t=>w.includes(t)));
+  if(idx < 0) idx = 0;
+  const start = Math.max(0, idx-4);
+  snippet = words.slice(start, start+16).join(' ');
+  let html = escapeHtml(snippet);
+  terms.forEach(t=>{
+    if(!t) return;
+    const safe = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp('('+safe+')','gi');
+    html = html.replace(re, '<mark>$1</mark>');
+  });
+  return html+'…';
+}
+
+function renderDrawer(query){
+  const terms = tokenize(query || '');
+  let ranked;
+  if(terms.length === 0){
+    ranked = docs.map(d=>({doc:d, score:null}));
+  } else {
+    ranked = docs.map(d=>({doc:d, score:bm25For(d, terms, docs, 1.5, 0.75)}))
+                 .sort((a,b)=>b.score - a.score);
+  }
+  const max = Math.max(0.0001, ...ranked.map(r=>r.score||0));
+  stack.innerHTML = '';
+  ranked.forEach((r, i)=>{
+    const card = document.createElement('div');
+    card.className = 'idx-card' + (i===0 && r.score>0 ? ' rank-0' : '');
+    const pct = r.score ? Math.round((r.score/max)*100) : 0;
+    card.innerHTML = `
+      <div class="tab">${r.doc.id}</div>
+      <div class="snippet">${highlight(r.doc.text, terms)}</div>
+      <div class="score">${r.score ? r.score.toFixed(2) : '—'}<b>${r.score ? 'score' : 'unranked'}</b></div>
+      <div class="scorebar" style="width:${r.score ? pct : 0}%"></div>
+    `;
+    stack.appendChild(card);
+  });
+  cardCount.textContent = terms.length ? `${ranked.filter(r=>r.score>0).length} of 10 matched` : '10 entries';
+}
+renderDrawer('');
+heroQuery.addEventListener('input', e=>renderDrawer(e.target.value));
+
+/* ============================= PIPELINE TRACK ============================= */
+const pipeTrack = document.getElementById('pipelineTrack');
+pipelineStages.forEach((s, i)=>{
+  const step = document.createElement('div');
+  step.className = 'pipe-step';
+  step.innerHTML = `<div class="stage">${s[0]}</div><div class="what">${s[1]}</div>`;
+  pipeTrack.appendChild(step);
+  if(i < pipelineStages.length-1){
+    const arrow = document.createElement('div');
+    arrow.className = 'pipe-arrow';
+    arrow.textContent = '→';
+    pipeTrack.appendChild(arrow);
+  }
+});
+
+/* ============================= FILE CATALOG ============================= */
+const catalog = document.getElementById('fileCatalog');
+docs.forEach(d=>{
+  const card = document.createElement('div');
+  card.className = 'file-card';
+  card.dataset.cat = d.cat;
+  card.innerHTML = `
+    <div class="chev">+</div>
+    <div class="fname">${d.id}</div>
+    <span class="cat-tag">${d.cat === 'core' ? 'core engine' : d.cat === 'server' ? 'server' : 'proto contract'}</span>
+    <div class="desc">${d.desc}</div>
+  `;
+  card.addEventListener('click', ()=>card.classList.toggle('open'));
+  catalog.appendChild(card);
+});
+
+/* ============================= BM25 SANDBOX ============================= */
+const rngF=document.getElementById('rngF'), rngDL=document.getElementById('rngDL'),
+      rngAVG=document.getElementById('rngAVG'), rngN=document.getElementById('rngN'),
+      rngNT=document.getElementById('rngNT'), rngK1=document.getElementById('rngK1'), rngB=document.getElementById('rngB');
+const lblF=document.getElementById('lblF'), lblDL=document.getElementById('lblDL'), lblAVG=document.getElementById('lblAVG'),
+      lblN=document.getElementById('lblN'), lblNT=document.getElementById('lblNT'), lblK1=document.getElementById('lblK1'), lblB=document.getElementById('lblB');
+const outIDF=document.getElementById('outIDF'), outTF=document.getElementById('outTF'), outScore=document.getElementById('outScore'), scoreBar=document.getElementById('scoreBar');
+
+function clampNT(){
+  const N = parseInt(rngN.value);
+  if(parseInt(rngNT.value) > N){ rngNT.value = N; }
+  rngNT.max = N;
+}
+
+function updateSandbox(){
+  clampNT();
+  const f = parseFloat(rngF.value), dl = parseFloat(rngDL.value), avgdl = parseFloat(rngAVG.value),
+        N = parseFloat(rngN.value), n_t = parseFloat(rngNT.value), k1 = parseFloat(rngK1.value), b = parseFloat(rngB.value);
+  lblF.textContent=f; lblDL.textContent=dl; lblAVG.textContent=avgdl; lblN.textContent=N; lblNT.textContent=n_t;
+  lblK1.textContent=k1.toFixed(2); lblB.textContent=b.toFixed(2);
+
+  const idf = Math.log(1 + (N - n_t + 0.5)/(n_t + 0.5));
+  const tf = (f*(k1+1))/(f + k1*(1-b+b*dl/avgdl));
+  const score = idf*tf;
+
+  outIDF.innerHTML = `ln(1 + (${N} − ${n_t} + 0.5) / (${n_t} + 0.5)) = <b>${idf.toFixed(3)}</b>`;
+  outTF.innerHTML = `(${f}·${(k1+1).toFixed(2)}) / (${f} + ${k1}·(1−${b}+${b}·${dl}/${avgdl})) = <b>${tf.toFixed(3)}</b>`;
+  outScore.textContent = score.toFixed(2);
+  const pct = Math.min(100, (score/8)*100);
+  scoreBar.style.width = pct+'%';
+}
+[rngF,rngDL,rngAVG,rngN,rngNT,rngK1,rngB].forEach(el=>el.addEventListener('input', updateSandbox));
+updateSandbox();
+
+/* ============================= RETRIEVAL TABS ============================= */
+document.querySelectorAll('.tabbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============================= ROADMAP ============================= */
+const roadmapTrack = document.getElementById('roadmapTrack');
+roadmap.forEach((phase, i)=>{
+  const wrap = document.createElement('div');
+  wrap.className = 'phase' + (phase.done ? ' done' : '') + (phase.partial ? ' partial' : '') + (i===0 ? ' open' : '');
+  const itemsHtml = phase.items.map(it=>{
+    if(typeof it === 'string') return `<li>${it}</li>`;
+    return `<li class="${it.todo ? 'todo' : ''}">${it.t}</li>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="phase-head">
+      <span class="ph-label">${phase.tag}</span>
+      <h4>${phase.title}</h4>
+      <span class="status">${phase.done ? 'shipped' : 'in progress'}</span>
+      <span class="chev2">›</span>
+    </div>
+    <div class="phase-body"><ul>${itemsHtml}</ul></div>
+  `;
+  wrap.querySelector('.phase-head').addEventListener('click', ()=>wrap.classList.toggle('open'));
+  roadmapTrack.appendChild(wrap);
+});
+
+/* ============================= SCROLL REVEAL + NAV ACTIVE ============================= */
+const reveals = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in'); });
+}, {threshold:0.12});
+reveals.forEach(el=>io.observe(el));
+
+const navLinks = document.querySelectorAll('nav.links a');
+const sections = [...navLinks].map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const navObserver = new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      const id = '#'+entry.target.id;
+      navLinks.forEach(l=>l.classList.toggle('active', l.getAttribute('href')===id));
     }
-  }, { threshold: 0.12 });
-  reveals.forEach(el => observer.observe(el));
-
-  const navToggle = document.getElementById('navToggle');
-  const nav = document.getElementById('nav');
-  navToggle?.addEventListener('click', () => {
-    nav.classList.toggle('open');
   });
-
-  const codeSample = document.getElementById('codeSample');
-  const tabs = document.querySelectorAll('.code-tab');
-  const samples = {
-    http: 'curl -u username:password https://localhost:7777/search?q=rust+search&limit=5',
-    json: JSON.stringify({
-      source_id: "docs/guide.md",
-      content: "ZynSearch delivers fast and elegant search.",
-      replace_existing: true
-    }, null, 2),
-    error: JSON.stringify({
-      error: {
-        code: "unauthorized",
-        message: "invalid or missing credentials"
-      }
-    }, null, 2)
-  };
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      codeSample.textContent = samples[tab.dataset.lang];
-    });
-  });
-
-  const demoForm = document.getElementById('demoForm');
-  const result = document.getElementById('result');
-  demoForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const endpoint = document.getElementById('endpoint').value.trim();
-    const query = document.getElementById('query').value.trim();
-    const content = document.getElementById('content').value.trim();
-    const mode = document.getElementById('mode').value;
-
-    const payload = {
-      endpoint,
-      mode,
-      request: mode === 'search'
-        ? { q: query, limit: 5, explain: true }
-        : mode === 'index'
-          ? { source_id: 'docs/live.md', content, replace_existing: true }
-          : { id: 'docs/live.md' },
-      response: mode === 'search'
-        ? {
-            query,
-            results: [
-              { document_id: 1, source_id: 'docs/live.md', score: 12.84, title: 'live.md' },
-              { document_id: 7, source_id: 'docs/sdk.md', score: 10.21, title: 'sdk.md' }
-            ],
-            stats: { total_hits: 2, truncated: false }
-          }
-        : mode === 'index'
-          ? { document_id: 42, source_id: 'docs/live.md', status: 'created' }
-          : { document_id: 42, source_id: 'docs/live.md', status: 'deleted' }
-    };
-
-    result.textContent = JSON.stringify(payload, null, 2);
-  });
+}, {rootMargin:'-40% 0px -50% 0px'});
+sections.forEach(s=>navObserver.observe(s));
 </script>
 </body>
 </html>
