@@ -12,6 +12,8 @@ mod collection_stats;
 mod bm25;
 mod top_k;
 mod positional_queries;
+mod wire_framing;
+mod multi_protocol;
 mod multi_reader;
 mod dictionary;
 mod merge_policy;
@@ -49,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::parse();
 
     println!("========================================");
-    println!("      AuraSearch TCP Daemon v1.0        ");
+    println!("      ZynSearch TCP Daemon v1.0        ");
     println!("========================================");
 
     let engine_core = SearchEngineCore::new();
@@ -96,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut buffer = [0; 1024];
 
             // Greet the client
-            let _ = socket.write_all(b"Connected to AuraSearch. Enter query:\n> ").await;
+            let _ = socket.write_all(b"Connected to ZynSearch. Enter query:\n> ").await;
 
             loop {
                 // Read client input

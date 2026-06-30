@@ -57,7 +57,7 @@ Speed means little if the first returned result is irrelevant. A statistical ran
 To handle production traffic at scale, the single node should support network protocols and distribution across multiple machines.
 
 //TODO!
-- [ ] Design a length-prefixed binary wire framing: prepend a 4-byte big-endian length header to outgoing socket operations to isolate TCP data packages cleanly.
+- [x] Design a length-prefixed binary wire framing: prepend a 4-byte big-endian length header to outgoing socket operations to isolate TCP data packages cleanly.
 //TODO!
 - [ ] Expose a multi-protocol socket API: let clients toggle execution parameters via raw text strings, JSON requests, or binary payloads.
 //TODO!

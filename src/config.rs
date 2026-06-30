@@ -8,27 +8,27 @@ pub enum OutputFormat {
 }
 
 #[derive(Parser, Debug, Clone)]
-#[command(name = "AuraSearch Daemon")]
+#[command(name = "ZynSearch Daemon")]
 #[command(version = "1.0.0")]
 #[command(about = "A high-performance zero-copy TCP search engine", long_about = None)]
 pub struct Config {
     /// The host IP to bind the TCP server to.
-    #[arg(short = 'H', long, env = "AURA_HOST", default_value = "127.0.0.1")]
+    #[arg(short = 'H', long, env = "ZYN_HOST", default_value = "127.0.0.1")]
     pub host: String,
 
     /// The port to listen on for incoming TCP queries.
-    #[arg(short = 'P', long, env = "AURA_PORT", default_value = "7777")]
+    #[arg(short = 'P', long, env = "ZYN_PORT", default_value = "7777")]
     pub port: u16,
 
     /// Path to the serialized binary database file.
-    #[arg(short = 'D', long, env = "AURA_DB_PATH", default_value = "index.bin")]
+    #[arg(short = 'D', long, env = "ZYN_DB_PATH", default_value = "index.bin")]
     pub db_path: String,
 
     /// Directory to crawl if no existing database is found.
-    #[arg(short = 'C', long, env = "AURA_CORPUS_DIR", default_value = "./")]
+    #[arg(short = 'C', long, env = "ZYN_CORPUS_DIR", default_value = "./")]
     pub corpus_dir: String,
 
     /// Output format for TCP responses.
-    #[arg(short = 'F', long, env = "AURA_FORMAT", value_enum, default_value_t = OutputFormat::Text)]
+    #[arg(short = 'F', long, env = "ZYN_FORMAT", value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }

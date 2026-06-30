@@ -10,7 +10,7 @@ impl StorageManager {
         let file = File::create(file_path)?;
         let mut writer = BufWriter::new(file);
 
-        writer.write_all(b"AURASEARCH")?;
+        writer.write_all(b"ZYNSEARCH")?;
 
         let doc_count = index.document_registry.len() as u64;
         writer.write_all(&doc_count.to_le_bytes())?;
@@ -50,10 +50,10 @@ impl StorageManager {
 
         let mut header = [0u8; 10];
         reader.read_exact(&mut header)?;
-        if &header != b"AURASEARCH" {
+        if &header != b"ZYNSEARCH" {
             return Err(std::io::Error::new(
                 InvalidData,
-                "Invalid AuraSearch database file signature"
+                "Invalid ZynSearch database file signature"
             ));
         }
 
@@ -128,7 +128,7 @@ impl<'a> ZeroCopyReader<'a> {
     pub fn lookup_term_postings(&self, target_term: &str) -> Option<Vec<usize>> {
         let mut cursor = 0;
 
-        if self.data.len() < 10 || &self.data[0..10] != b"AURASEARCH" {
+        if self.data.len() < 10 || &self.data[0..10] != b"ZYNSEARCH" {
             return None;
         }
         cursor += 10;

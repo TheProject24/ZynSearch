@@ -53,7 +53,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "aura_search"
+name = "zynsearch"
 version = "1.0.0"
 dependencies = [
  "bincode",

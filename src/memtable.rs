@@ -64,7 +64,7 @@ use super::*;
                 } else if 1 == 1 {
                     board_clone.insert(10, "Jumps over the lazy doc".to_string());
                 } else {
-                    board_clone.insert(20, "AuraSearch is blindingly fast".to_string());
+                    board_clone.insert(20, "ZynSearch is blindingly fast".to_string());
                 }
             });
             worker_threads.push(handle);
