@@ -44,7 +44,7 @@ Linear text matching scales poorly. The search layer needs structures that can s
 Speed means little if the first returned result is irrelevant. A statistical ranking layer will make the engine much more useful.
 
 //TODO!
-- [ ] Add in-memory collection statistics: maintain real-time tracking metrics such as total document counts and average document length.
+- [x] Add in-memory collection statistics: maintain real-time tracking metrics such as total document counts and average document length.
 //TODO!
 - [ ] Build a native BM25 scorer module: calculate document weights dynamically using term frequency and document-length normalization.
 //TODO!
