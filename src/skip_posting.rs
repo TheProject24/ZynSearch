@@ -6,7 +6,7 @@ pub struct SkipPointer {
     pub byte_offset: usize,
 }
 
-#[derice(Debug)]
+#[derive(Debug)]
 pub struct EncodedPostingWithSkips {
     pub binary_payload: Vec<u8>,
     pub skip_table: Vec<SkipPointer>,

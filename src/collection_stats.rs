@@ -42,7 +42,6 @@ impl CollectionStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::linux::raw::stat;
 use std::sync::Arc;
     use std::thread;
 

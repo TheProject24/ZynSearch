@@ -2,13 +2,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::cmp::Ordering;
 
-use crate::top_k::SearchResult;
 
-// #[derive(Debug, Clone, Copy)]
-// pub struct SearchResult {
-//     pub doc_id: u32,
-//     pub score: f32,
-// }
 
 #[derive(Debug, Clone)]
 pub struct SearchResult {
@@ -79,7 +73,7 @@ mod tests {
         };
 
         let top_k_limit = 3;
-        let final_results = coordinator.execute_distributed_search("fast car", top_k_limit);
+        let final_results = coordinator.execute_dist_search("fast car", top_k_limit);
         assert_eq!(final_results.len(), 3);
 
         println!("\n=== FINAL GOOGLE PAGE 1 ===");

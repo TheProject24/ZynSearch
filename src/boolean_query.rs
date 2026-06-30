@@ -17,9 +17,9 @@ pub struct BooleanQuery {
     pub clauses: Vec<QueryClause>,
 }
 
-impl Boolean {
+impl BooleanQuery {
     pub fn execute<F>(&self, fetch_documents_for_word: F) -> HashSet<u32>
-    where Fn(&str) -> HashSet<u32>,
+    where F: Fn(&str) -> HashSet<u32>,
     {
         let mut must_bucket: Option<HashSet<u32>> = None;
         let mut should_bucket = HashSet::new();

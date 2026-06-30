@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_document_sharding() {
-        let orchestrator = ClusterOrchestrator::new(3)
+        let orchestrator = ClusterOrchestrator::new(3);
 
         let doc1 = IncomingDocument { document_id: "ZYN-001".to_string(), text: "apple".to_string() };
         let doc2 = IncomingDocument { document_id: "ZYN-002".to_string(), text: "banana".to_string() };

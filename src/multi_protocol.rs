@@ -20,7 +20,7 @@ impl ProtocolParser {
         match payload[0] {
             b'{' => {
                 println!("Sniffed a '{{'. Routing to JSON parser . . .");
-                self::parse_json(payload)
+                Self::parse_json(payload)
             }
 
             MAGIC_BYTE_BINARY => {

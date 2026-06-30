@@ -40,7 +40,8 @@ impl Segment {
         let file_path = storage_folder.join(file_name);
 
         let mut file = File::create(file_path)?;
-
+        let serialized_bytes = bincode::serialize(&new_segment).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        file.write_all(&serialized_bytes)?;
         file.sync_all()?;
 
         println!("Succeddfully laminated Segment #{} to disk!", segment_id);
@@ -53,7 +54,7 @@ impl Segment {
 mod test {
     use crate::memtable;
 
-use super::*;
+    use super::*;
     use std::fs;
 
     #[test]
@@ -73,7 +74,7 @@ use super::*;
         let file_bytes = fs::read(&expected_file).unwrap();
         let recovered_segment: Segment = bincode::deserialize(&file_bytes).unwrap();
 
-        let the_list = recovererd_segment.dictionary.get("the").unwrap();
+        let the_list = recovered_segment.dictionary.get("the").unwrap();
         assert_eq!(the_list, &vec![10, 20]);
 
         let _ = fs::remove_file(expected_file);

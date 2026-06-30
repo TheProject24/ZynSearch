@@ -48,7 +48,7 @@ impl StorageManager {
         let file = File::open(file_path)?;
         let mut reader = BufReader::new(file);
 
-        let mut header = [0u8; 10];
+        let mut header = [0u8; 9];
         reader.read_exact(&mut header)?;
         if &header != b"ZYNSEARCH" {
             return Err(std::io::Error::new(
@@ -128,10 +128,10 @@ impl<'a> ZeroCopyReader<'a> {
     pub fn lookup_term_postings(&self, target_term: &str) -> Option<Vec<usize>> {
         let mut cursor = 0;
 
-        if self.data.len() < 10 || &self.data[0..10] != b"ZYNSEARCH" {
+        if self.data.len() < 9 || &self.data[0..9] != b"ZYNSEARCH" {
             return None;
         }
-        cursor += 10;
+        cursor += 9;
 
         let doc_count = u64::from_le_bytes(self.data[cursor..cursor+8].try_into().ok()?) as usize;
         cursor += 8;

@@ -45,7 +45,7 @@ mod test {
             ("apple".to_string(), 101),
             ("car".to_string(), 102),
             ("cat".to_string(), 103),
-            ("cat".to_string(), 104),
+            ("cats".to_string(), 104),
         ];
 
         let dict = FstDictionary::compile_from_sorted_words(raw_vocab).unwrap();

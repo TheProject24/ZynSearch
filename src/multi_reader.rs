@@ -20,7 +20,7 @@ impl MultiSegmentReader {
         let target_word = search_word.to_lowercase();
 
         let final_combined_results: Vec<u32> = self.active_segments
-            .into_par_iter()
+            .par_iter()
             .filter_map(|segment| {
                 println!("Thread {:?} is checking segment #{} . . .", std::thread::current().id(), segment.segment_id);
                 segment.dictionary.get(&target_word).cloned()

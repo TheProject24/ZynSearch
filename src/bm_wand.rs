@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_block_max_wand() {
-        let mut leaderboard - TopResultsLeaderBoard::new(2);
+        let mut leaderboard = TopResultsLeaderBoard::new(2);
 
         let piles = vec![
             BlockMaxSignpost { max_doc_id: 128, max_score: 5.0, byte_offset: 0 },
