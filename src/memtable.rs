@@ -59,6 +59,8 @@ use super::*;
         for i in 0..3 {
             let board_clone = memtable.clone();
             let handle = thread::spawn(move || {
+                if i == 0 {
+                    board_clone.insert(30, "the quick brown fox".to_string());
                 } else if i == 1 {
                     board_clone.insert(10, "Jumps over the lazy doc".to_string());
                 } else {
