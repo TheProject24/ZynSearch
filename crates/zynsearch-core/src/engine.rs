@@ -103,7 +103,7 @@ impl SearchEngineCore {
                     if self.is_missing_live_document(source_kind, path) {
                         to_delete.push(result.doc_id as usize);
                     } else {
-                        valid_results.push(*result);
+                        valid_results.push(result.clone());
                     }
                 } else {
                     to_delete.push(result.doc_id as usize);

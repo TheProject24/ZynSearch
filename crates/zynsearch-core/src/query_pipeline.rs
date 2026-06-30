@@ -114,7 +114,7 @@ pub fn format_results(results: &[SearchResult], format: OutputFormat) -> Vec<u8>
                         "doc_id": result.doc_id,
                         "score": result.score
                     })
-                }))
+                })
                 .collect::<Vec<_>>();
             serde_json::to_vec(&payload).unwrap_or_default()
         }
