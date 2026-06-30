@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 use crate::index::InvertedIndex;
 use crate::analyzer::TextAnalyzer;
 use crate::searcher::SearchEngine;
+use crate::top_k::SearchResult;
 
 pub struct SearchEngineCore {
     pub index: Arc<RwLock<InvertedIndex>>,
@@ -30,5 +31,18 @@ impl SearchEngineCore {
         let searcher = SearchEngine::new(&read_guard, &*self.analyzer);
 
         searcher.search(raw_query)
+    }
+
+    pub fn execute_search_for_shard(
+        &self,
+        raw_query: &str,
+        shard_id: usize,
+        shard_count: usize,
+        limit: usize,
+    ) -> Vec<SearchResult> {
+        let read_guard = self.index.read().unwrap();
+        let searcher = SearchEngine::new(&read_guard, &*self.analyzer);
+
+        searcher.search_scored(raw_query, shard_id, shard_count, limit)
     }
 }

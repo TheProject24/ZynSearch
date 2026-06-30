@@ -26,6 +26,7 @@ mod layout;
 mod wal;
 mod bitmap;
 mod config; // Register your new config module!
+mod query_pipeline;
 
 use std::path::Path;
 use clap::Parser;
@@ -37,7 +38,8 @@ use crawler::DirectoryCrawler;
 use parser::{PlainTextParser, MarkdownParser, DocumentParser};
 use engine::SearchEngineCore;
 use storage::StorageManager;
-use config::{Config, OutputFormat};
+use config::Config;
+use query_pipeline::{format_results, parse_query, QueryCoordinator};
 
 #[derive(Serialize)]
 struct SearchResponse {
@@ -57,23 +59,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("========================================");
 
     let engine_core = SearchEngineCore::new();
+    let shared_engine = std::sync::Arc::new(engine_core);
+    let coordinator = QueryCoordinator::new(shared_engine.clone(), 4);
 
     // 2. BOOT SEQUENCE
     if Path::new(&config.db_path).exists() {
         println!("[BOOT] Hydrating database from: {}", config.db_path);
         match StorageManager::deserialize(&config.db_path) {
             Ok(loaded_index) => {
-                *engine_core.index.write().unwrap() = loaded_index;
+                *shared_engine.index.write().unwrap() = loaded_index;
                 println!("[BOOT] Hydration successful.");
             }
             Err(e) => {
                 eprintln!("[ERROR] Failed to load DB: {}", e);
-                run_ingestion_pipeline(&engine_core, &config);
+                run_ingestion_pipeline(&shared_engine, &config);
             }
         }
     } else {
         println!("[BOOT] No database found. Initiating corpus crawl...");
-        run_ingestion_pipeline(&engine_core, &config);
+        run_ingestion_pipeline(&shared_engine, &config);
     }
 
     // 3. START TCP SERVER
@@ -82,20 +86,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n[NETWORK] Server listening on TCP {}", bind_addr);
     println!("[NETWORK] Ready for incoming connections...\n");
 
-    // Wrap the engine in an Arc so we can share it safely across thousands of TCP connections
-    let shared_engine = std::sync::Arc::new(engine_core);
-
     // 4. ASYNC CONNECTION LOOP
     loop {
         // Wait for a new client to connect
         let (mut socket, addr) = listener.accept().await?;
         println!("[TCP] Client connected from: {}", addr);
 
-        // Clone the Arc pointer for this specific client task
-        let engine_clone = shared_engine.clone();
-
         // Spawn a concurrent Tokio task. This allows thousands of users 
         // to search simultaneously without blocking each other!
+        let coordinator = coordinator.clone();
         tokio::spawn(async move {
             let mut buffer = [0; 1024];
 
@@ -110,50 +109,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Err(_) => break, // Connection dropped
                 };
 
-                // Parse the raw bytes into a UTF-8 string query
-                let query = String::from_utf8_lossy(&buffer[..bytes_read]);
-                let query = query.trim();
+                let payload = &buffer[..bytes_read];
+                let parsed_query = match parse_query(payload) {
+                    Ok(query) => query,
+                    Err(err) => {
+                        let _ = socket.write_all(format!("Query parse error: {}\n", err).as_bytes()).await;
+                        continue;
+                    }
+                };
 
-                if query.is_empty() {
+                if parsed_query.query_string.trim().is_empty() {
                     let _ = socket.write_all(b"> ").await;
                     continue;
                 }
 
-                if query == "exit" || query == "quit" {
+                if parsed_query.query_string == "exit" || parsed_query.query_string == "quit" {
                     let _ = socket.write_all(b"Goodbye!\n").await;
                     break;
                 }
 
-                // EXECUTE SEARCH ALGORITHM
-                let hits = engine_clone.execute_search(query);
-
-                // Build the standard response object
-                let response_data = SearchResponse {
-                    query: query.to_string(),
-                    status: "success".to_string(),
-                    match_count: hits.len(),
-                    documents: hits,
-                };
-
-                // 3. Dynamically format based on runtime configuration
-                let wire_bytes: Vec<u8> = match config.format {
-                    OutputFormat::Text => {
-                        // Human-readable terminal output
-                        let mut text = format!("Found {} matches:\n", response_data.match_count);
-                        for doc in &response_data.documents {
-                            text.push_str(&format!(" -> {}\n", doc));
-                        }
-                        text.into_bytes()
-                    }
-                    OutputFormat::Json => {
-                        // High-compatibility JSON string serialization
-                        serde_json::to_vec(&response_data).unwrap_or_default()
-                    }
-                    OutputFormat::Binary => {
-                        // Ultra-low latency, dense binary representation for other Rust backend nodes
-                        bincode::serialize(&response_data).unwrap_or_default()
-                    }
-                };
+                let hits = coordinator.execute(parsed_query.clone());
+                let wire_bytes = format_results(&hits, config.format);
 
                 // Shoot the customized byte envelope out across the TCP wire!
                 if socket.write_all(&wire_bytes).await.is_err() {
@@ -165,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn run_ingestion_pipeline(engine_core: &SearchEngineCore, config: &Config) {
+fn run_ingestion_pipeline(engine_core: &std::sync::Arc<SearchEngineCore>, config: &Config) {
     let target_dir = Path::new(&config.corpus_dir);
     let allowed_extensions = vec!["txt".to_string(), "md".to_string()];
     let crawler = DirectoryCrawler::new(target_dir, allowed_extensions);

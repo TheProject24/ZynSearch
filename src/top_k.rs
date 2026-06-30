@@ -1,7 +1,9 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::BinaryHeap;
 
-#[derive(Debug, Clone, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SearchResult {
     pub score: f32,
     pub doc_id: u32,
