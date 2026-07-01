@@ -363,6 +363,544 @@ If you want to understand ZynSearch properly, read it in this order:
 
 <br>
 
+## 🧭 Configuration Reference
+
+This section is the practical operating manual for ZynSearch.
+
+If you only remember one thing, remember this:
+
+> **Configuration is layered.**
+> The effective runtime configuration is built in this order:
+> 1. built-in defaults
+> 2. `zynsearch.config.json` or `--config`
+> 3. env file overrides via `--env-path` or `ZYN_ENV_PATH`
+> 4. CLI flags and environment variables
+
+That means the final value you observe at runtime may differ from what is written in the JSON file if you override it from the shell.
+
+<br>
+
+### 1 · How ZynSearch Resolves Configuration
+
+ZynSearch reads config at startup, not at compile time.
+
+The loader does the following:
+
+1. Parse CLI arguments
+2. Choose the config file path
+3. Load the JSON config if it exists
+4. Optionally load an env file
+5. Apply CLI / env overrides
+6. Normalize distribution channels
+7. Derive the transport protocol when needed
+
+That means a restart is enough for config changes to take effect.
+
+<br>
+
+### 2 · Config File Selection
+
+The JSON config path is resolved in this order:
+
+| Priority | Source | Example |
+|---|---|---|
+| 1 | `--config <path>` | `--config ./zynsearch.config.json` |
+| 2 | `ZYN_CONFIG_PATH` | `export ZYN_CONFIG_PATH=/tmp/zynsearch.config.json` |
+| 3 | Default | `zynsearch.config.json` in the current working directory |
+
+If the file is missing, ZynSearch falls back to built-in defaults.
+
+<br>
+
+### 3 · CLI Flags Reference
+
+The CLI is powered by `clap`, and each flag has a matching environment variable.
+
+| Flag | Env var | Type | Meaning | Default / Notes |
+|---|---|---|---|---|
+| `--config` | `ZYN_CONFIG_PATH` | path | Path to the JSON config file | Defaults to `zynsearch.config.json` |
+| `--env-path` | `ZYN_ENV_PATH` | path | Optional env file with `KEY=VALUE` overrides | If missing, no env-file overrides are applied |
+| `-H, --host` | `ZYN_HOST` | string | Bind host for network transports | Usually `127.0.0.1` for local testing |
+| `-P, --port` | `ZYN_PORT` | u16 | Bind port for network transports | Defaults to `7777` |
+| `-D, --db-path` | `ZYN_DB_PATH` | path | Path to the serialized index database | Defaults to `index.bin` |
+| `-C, --corpus-dir` | `ZYN_CORPUS_DIR` | path | Directory to ingest when using local folder ingestion | Overrides `ingestion.corpus_dir` |
+| `-F, --output-format` | `ZYN_FORMAT` | `text` \| `json` \| `binary` | CLI output format and some transport responses | Defaults to `text` |
+| `--protocol` | `ZYN_PROTOCOL` | `tcp` \| `http` \| `grpc` \| `both` | Which transport(s) to start | Derived from `distribution.channels` if not set |
+| `--ingestion` | `ZYN_INGESTION` | `localdir` \| `s3` | Which ingestion source to use | Defaults to `localdir` |
+| `--distribution` | `ZYN_DISTRIBUTION` | repeatable channel flag | Adds a client-facing transport channel | Repeat it to enable more than one |
+| `--s3-bucket` | `ZYN_S3_BUCKET` | string | S3 bucket name for S3 ingestion | Required when `--ingestion s3` |
+| `--s3-prefix` | `ZYN_S3_PREFIX` | string | Optional prefix within the bucket | Useful for corpus subfolders |
+| `--query` | `ZYN_QUERY` | string | One-shot query on startup | Prints results and exits in CLI / short-circuit mode |
+| `--http-username` | `ZYN_HTTP_USERNAME` | string | Basic Auth username for REST | Optional, but recommended for exposed servers |
+| `--http-password` | `ZYN_HTTP_PASSWORD` | string | Basic Auth password for REST | Optional, but recommended for exposed servers |
+| `--http-tls-cert-path` | `ZYN_HTTP_TLS_CERT_PATH` | path | TLS certificate chain for HTTPS | Must be paired with key path |
+| `--http-tls-key-path` | `ZYN_HTTP_TLS_KEY_PATH` | path | TLS private key for HTTPS | Must be paired with cert path |
+| `--enable-periodic-cleanup` | `ZYN_CLEANUP_ENABLE` | bool | Enable background cleanup of missing files | Defaults to `true` |
+| `--cleanup-interval-seconds` | `ZYN_CLEANUP_INTERVAL` | u64 | Cleanup interval in seconds | Defaults to `60` |
+
+<br>
+
+### 4 · JSON Config Reference
+
+The canonical JSON file is `zynsearch.config.json`.
+
+It is made of six blocks:
+
+| Block | Purpose |
+|---|---|
+| `manifest` | Human-readable identity for the deployment |
+| `runtime` | Network behavior, query behavior, and output formatting |
+| `ingestion` | Where documents come from |
+| `storage` | Where the serialized index is stored |
+| `distribution` | Which transport channels are exposed to clients |
+| `cleanup` | Background maintenance of missing/deleted files |
+
+<br>
+
+#### 4.1 `manifest`
+
+This block is descriptive metadata.
+
+| Field | Type | Meaning | Default |
+|---|---|---|---|
+| `name` | string | Human name shown in startup banners and docs | `zynsearch` |
+| `version` | string | Human version string | `1.0.0` |
+| `description` | string | Short product description | `Plug-and-play search engine` |
+
+Example:
+
+```json
+"manifest": {
+  "name": "zynsearch",
+  "version": "1.0.0",
+  "description": "Plug-and-play search engine"
+}
+```
+
+<br>
+
+#### 4.2 `runtime`
+
+This block controls how the process behaves when it starts serving or printing results.
+
+| Field | Type | Meaning | Default | Notes |
+|---|---|---|---|---|
+| `host` | string | Interface the server binds to | `127.0.0.1` | Use `0.0.0.0` if you want LAN access |
+| `port` | u16 | Port for TCP/HTTP/gRPC | `7777` | Must not conflict with other services |
+| `protocol` | `tcp` \| `http` \| `grpc` \| `both` | Transport mode | `tcp` | CLI one-shot mode still loads this, but server startup uses it directly |
+| `output_format` | `text` \| `json` \| `binary` | Result formatting style | `text` | Affects CLI and HTTP/gRPC formatting paths |
+| `query` | string \| null | Optional one-shot query | `null` | If set, startup runs the query and exits instead of serving |
+| `http_username` | string \| null | Basic Auth username | `null` | Enables auth when paired with password |
+| `http_password` | string \| null | Basic Auth password | `null` | Should be treated like a secret |
+| `http_tls_cert_path` | string \| null | PEM certificate path | `null` | Must be used with key path |
+| `http_tls_key_path` | string \| null | PEM private key path | `null` | Must be used with cert path |
+
+Example:
+
+```json
+"runtime": {
+  "host": "127.0.0.1",
+  "port": 7777,
+  "protocol": "http",
+  "output_format": "json",
+  "query": null,
+  "http_username": "admin",
+  "http_password": "change-me",
+  "http_tls_cert_path": null,
+  "http_tls_key_path": null
+}
+```
+
+Behavior notes:
+
+- If `query` is set, the binary performs a one-shot query and exits after printing results.
+- `protocol` determines which server transport starts.
+- `output_format` matters most for CLI and for non-HTTP presentation paths.
+- HTTP auth is only active when both `http_username` and `http_password` are present.
+- HTTPS only starts when both TLS paths are present.
+
+<br>
+
+#### 4.3 `ingestion`
+
+This block controls how documents are discovered and normalized into the index.
+
+| Field | Type | Meaning | Default | Notes |
+|---|---|---|---|---|
+| `mode` | `localdir` \| `s3` | Ingestion source type | `localdir` | Local folder ingest is the easiest way to test |
+| `corpus_dir` | string | Folder to crawl when `mode = localdir` | `./` | Use an absolute path for less surprise |
+| `s3_bucket` | string \| null | S3 bucket name when `mode = s3` | `null` | Required for S3 ingest |
+| `s3_prefix` | string \| null | Optional S3 prefix | `null` | Acts like a folder prefix |
+
+Example:
+
+```json
+"ingestion": {
+  "mode": "localdir",
+  "corpus_dir": "/home/knny/itcannotalwaysbenight/MATERIALS",
+  "s3_bucket": null,
+  "s3_prefix": null
+}
+```
+
+Behavior notes:
+
+- `localdir` recursively crawls the folder and ingests supported files.
+- Supported local extensions include: `.txt`, `.md`, `.csv`, `.pdf`, `.docx`, `.xlsx`.
+- `s3` lists objects under the chosen prefix and ingests supported object types.
+- If one document fails to extract, the current ingestion path skips it with a warning and continues.
+
+<br>
+
+#### 4.4 `storage`
+
+This block decides where the serialized index is written.
+
+| Field | Type | Meaning | Default | Notes |
+|---|---|---|---|---|
+| `db_path` | string | File path for the persisted index | `index.bin` | Should point to a writable location |
+
+Example:
+
+```json
+"storage": {
+  "db_path": "/home/knny/itcannotalwaysbenight/MATERIALS/zynsearch-index.bin"
+}
+```
+
+Behavior notes:
+
+- If the file exists, startup tries to load it first.
+- If loading fails, ZynSearch falls back to re-ingesting the corpus.
+- If you want a clean ingest test, remove the file before restarting.
+
+<br>
+
+#### 4.5 `distribution`
+
+This block tells ZynSearch which client-facing transport channels should be available.
+
+| Field | Type | Meaning | Default | Notes |
+|---|---|---|---|---|
+| `channels` | array of `tcp` \| `http` \| `grpc` | Enabled distribution channels | `[tcp]` | Duplicate values are deduplicated at startup |
+
+Example:
+
+```json
+"distribution": {
+  "channels": ["tcp", "http", "grpc"]
+}
+```
+
+Behavior notes:
+
+- A single channel maps to the matching protocol mode.
+- Any combination of multiple channels maps to `both` at runtime.
+- If the array is empty, ZynSearch normalizes it back to `[tcp]`.
+
+<br>
+
+#### 4.6 `cleanup`
+
+This block controls background cleanup of documents whose underlying filesystem paths no longer exist.
+
+| Field | Type | Meaning | Default | Notes |
+|---|---|---|---|---|
+| `enable_periodic_cleanup` | bool | Whether cleanup runs in the background | `true` | Useful for filesystem-backed corpora |
+| `period_seconds` | u64 | Cleanup interval in seconds | `60` | Values lower than `1` are clamped by the runtime caller |
+
+Example:
+
+```json
+"cleanup": {
+  "enable_periodic_cleanup": true,
+  "period_seconds": 60
+}
+```
+
+Behavior notes:
+
+- Useful when your corpus is a live folder that changes over time.
+- Less relevant for immutable corpora or S3-backed corpora.
+
+<br>
+
+### 5 · Override Rules
+
+When the same setting is provided more than once, the higher-priority source wins.
+
+| Priority | Source | Wins Over |
+|---|---|---|
+| 1 | CLI flags | Everything below |
+| 2 | `ZYN_*` environment variables | JSON file and defaults |
+| 3 | env file values from `--env-path` | JSON file and defaults |
+| 4 | `zynsearch.config.json` | Built-in defaults |
+| 5 | Built-in defaults | Nothing |
+
+That means a value in the JSON file is the baseline, not the ceiling.
+
+<br>
+
+### 6 · Practical Recipes
+
+#### Recipe A: Local folder ingest + HTTP + JSON output
+
+```json
+{
+  "runtime": {
+    "host": "127.0.0.1",
+    "port": 7777,
+    "protocol": "http",
+    "output_format": "json",
+    "query": null
+  },
+  "ingestion": {
+    "mode": "localdir",
+    "corpus_dir": "/home/knny/itcannotalwaysbenight/MATERIALS",
+    "s3_bucket": null,
+    "s3_prefix": null
+  },
+  "storage": {
+    "db_path": "/home/knny/itcannotalwaysbenight/MATERIALS/zynsearch-index.bin"
+  },
+  "distribution": {
+    "channels": ["http"]
+  },
+  "cleanup": {
+    "enable_periodic_cleanup": true,
+    "period_seconds": 60
+  },
+  "manifest": {
+    "name": "zynsearch",
+    "version": "1.0.0",
+    "description": "Plug-and-play search engine"
+  },
+  "env_path": null,
+  "config_path": "zynsearch.config.json"
+}
+```
+
+Run:
+
+```bash
+cargo build --release -p zynsearch-server
+./target/release/zynsearch-server --config ./zynsearch.config.json
+```
+
+Search with:
+
+```bash
+curl -H "Accept: application/json" "http://127.0.0.1:7777/search?q=machine&limit=5&explain=true"
+```
+
+#### Recipe B: One-shot CLI query
+
+```bash
+./target/release/zynsearch-cli --config ./zynsearch.config.json --query "engineering"
+```
+
+You can also place the query in JSON:
+
+```json
+"runtime": {
+  "query": "engineering"
+}
+```
+
+and then run the binary without `--query`.
+
+#### Recipe C: Override everything from the shell
+
+```bash
+ZYN_CONFIG_PATH=./zynsearch.config.json \
+ZYN_CORPUS_DIR=/home/knny/itcannotalwaysbenight/MATERIALS \
+ZYN_FORMAT=json \
+./target/release/zynsearch-cli --query "machine"
+```
+
+This is useful when you want a reusable config file but different test runs.
+
+<br>
+
+### 7 · Common Mistakes
+
+- Pointing `corpus_dir` at a folder that does not exist
+- Forgetting that `curl` requires `runtime.protocol = "http"`
+- Leaving an old `db_path` around and expecting a fresh ingest
+- Using `s3` mode without setting `s3_bucket`
+- Setting only one of `http_tls_cert_path` / `http_tls_key_path`
+- Assuming filenames are indexed instead of document contents
+
+<br>
+
+### 8 · Quick Mental Model
+
+Think of the config like this:
+
+| Question | Setting |
+|---|---|
+| Where do documents come from? | `ingestion` |
+| Where does the index live? | `storage.db_path` |
+| How do clients connect? | `runtime.protocol` and `distribution.channels` |
+| How do results look? | `runtime.output_format` |
+| Does the process exit after one query? | `runtime.query` |
+| Is the API protected? | `runtime.http_username` and `runtime.http_password` |
+| Is transport encrypted? | `runtime.http_tls_cert_path` and `runtime.http_tls_key_path` |
+
+If you can answer those seven questions, you can configure ZynSearch confidently.
+
+<br>
+
+### 9 · Copy-Paste Starter Configs
+
+These are meant to save time when you want to test a specific path quickly.
+
+#### 9.1 CLI test config
+
+Use this when you want a simple one-shot ingest and query run:
+
+```json
+{
+  "manifest": {
+    "name": "zynsearch",
+    "version": "1.0.0",
+    "description": "Plug-and-play search engine"
+  },
+  "runtime": {
+    "host": "127.0.0.1",
+    "port": 7777,
+    "protocol": "tcp",
+    "output_format": "text",
+    "query": "machine",
+    "http_username": null,
+    "http_password": null,
+    "http_tls_cert_path": null,
+    "http_tls_key_path": null
+  },
+  "ingestion": {
+    "mode": "localdir",
+    "corpus_dir": "/home/knny/itcannotalwaysbenight/MATERIALS",
+    "s3_bucket": null,
+    "s3_prefix": null
+  },
+  "storage": {
+    "db_path": "/home/knny/itcannotalwaysbenight/MATERIALS/zynsearch-index.bin"
+  },
+  "distribution": {
+    "channels": ["tcp"]
+  },
+  "cleanup": {
+    "enable_periodic_cleanup": true,
+    "period_seconds": 60
+  },
+  "env_path": null,
+  "config_path": "zynsearch.config.json"
+}
+```
+
+Run:
+
+```bash
+cargo build --release -p zynsearch-cli
+./target/release/zynsearch-cli --config ./zynsearch.config.json
+```
+
+#### 9.2 HTTP + curl test config
+
+Use this when you want the server to stay up and accept REST calls:
+
+```json
+{
+  "manifest": {
+    "name": "zynsearch",
+    "version": "1.0.0",
+    "description": "Plug-and-play search engine"
+  },
+  "runtime": {
+    "host": "127.0.0.1",
+    "port": 7777,
+    "protocol": "http",
+    "output_format": "json",
+    "query": null,
+    "http_username": null,
+    "http_password": null,
+    "http_tls_cert_path": null,
+    "http_tls_key_path": null
+  },
+  "ingestion": {
+    "mode": "localdir",
+    "corpus_dir": "/home/knny/itcannotalwaysbenight/MATERIALS",
+    "s3_bucket": null,
+    "s3_prefix": null
+  },
+  "storage": {
+    "db_path": "/home/knny/itcannotalwaysbenight/MATERIALS/zynsearch-index.bin"
+  },
+  "distribution": {
+    "channels": ["http"]
+  },
+  "cleanup": {
+    "enable_periodic_cleanup": true,
+    "period_seconds": 60
+  },
+  "env_path": null,
+  "config_path": "zynsearch.config.json"
+}
+```
+
+Run and query:
+
+```bash
+cargo build --release -p zynsearch-server
+./target/release/zynsearch-server --config ./zynsearch.config.json
+curl -H "Accept: application/json" "http://127.0.0.1:7777/search?q=machine&limit=5&explain=true"
+```
+
+#### 9.3 gRPC starter config
+
+Use this when you want the gRPC transport only:
+
+```json
+{
+  "manifest": {
+    "name": "zynsearch",
+    "version": "1.0.0",
+    "description": "Plug-and-play search engine"
+  },
+  "runtime": {
+    "host": "127.0.0.1",
+    "port": 7777,
+    "protocol": "grpc",
+    "output_format": "json",
+    "query": null,
+    "http_username": null,
+    "http_password": null,
+    "http_tls_cert_path": null,
+    "http_tls_key_path": null
+  },
+  "ingestion": {
+    "mode": "localdir",
+    "corpus_dir": "/home/knny/itcannotalwaysbenight/MATERIALS",
+    "s3_bucket": null,
+    "s3_prefix": null
+  },
+  "storage": {
+    "db_path": "/home/knny/itcannotalwaysbenight/MATERIALS/zynsearch-index.bin"
+  },
+  "distribution": {
+    "channels": ["grpc"]
+  },
+  "cleanup": {
+    "enable_periodic_cleanup": true,
+    "period_seconds": 60
+  },
+  "env_path": null,
+  "config_path": "zynsearch.config.json"
+}
+```
+
+<br>
+
 <div align="center">
 
 *ZynSearch — core, server, and SDKs, kept honest about how they fit together.*
